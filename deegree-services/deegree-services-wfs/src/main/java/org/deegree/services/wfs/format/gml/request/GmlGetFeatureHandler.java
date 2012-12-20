@@ -114,6 +114,141 @@ import org.slf4j.LoggerFactory;
 public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
 
     private static final Logger LOG = LoggerFactory.getLogger( GmlGetFeatureHandler.class );
+    
+    private class FeatureCollectionWriter {
+    	
+    	private GetFeature request;
+    	private HttpResponseBuffer response;
+    	private QueryAnalyzer analyzer;
+    	private Lock lock;
+    	
+    	private boolean outputStarted = false;
+    	private GMLStreamWriter gmlStream;
+		private WfsXlinkStrategy additionalObjects;
+		private XMLStreamWriter xmlStream;
+		private QName memberElementName;
+		private boolean localReferencesPossible;
+
+		FeatureCollectionWriter( GetFeature request, HttpResponseBuffer response, QueryAnalyzer analyzer, Lock lock, boolean localReferencesPossible ) {
+    		this.request = request;
+    		this.response = response;
+    		this.analyzer = analyzer;
+    		this.lock = lock;
+    		this.localReferencesPossible = localReferencesPossible;
+    	}
+    	
+    	GMLStreamWriter getGMLStreamWriter() throws XMLStreamException, IOException  {    		
+    		if( !outputStarted ) {
+    			startOutput();
+    		}
+    		
+    		return gmlStream;
+    	}
+    	
+    	WfsXlinkStrategy getAdditionalObjects() throws XMLStreamException, IOException {
+    		if( !outputStarted ) {
+    			startOutput();
+    		}
+    		
+    		return additionalObjects;
+    	}
+    	
+    	XMLStreamWriter getXmlStream() throws XMLStreamException, IOException {
+    		if( !outputStarted ) {
+    			startOutput();
+    		}
+    		
+    		return xmlStream;
+    	}
+    	
+    	QName getMemberElementName() throws XMLStreamException, IOException {
+    		if( !outputStarted ) {
+    			startOutput();
+    		}
+    		
+    		return memberElementName;
+    	}	
+    
+            
+    	private void startOutput() throws XMLStreamException, IOException {        		
+        	outputStarted = true;
+        	
+        	GMLVersion gmlVersion = options.getGmlVersion();
+        	String schemaLocation = getSchemaLocation( request.getVersion(), analyzer.getFeatureTypes() );        	
+        	String xLinkTemplate = getObjectXlinkTemplate( request.getVersion(), gmlVersion );
+
+            String contentType = options.getMimeType();
+            xmlStream = WebFeatureService.getXMLResponseWriter( response, contentType, schemaLocation );
+            xmlStream = new BufferableXMLStreamWriter( xmlStream, xLinkTemplate );
+
+            memberElementName = determineFeatureMemberElement( request.getVersion() );
+
+            QName responseContainerEl = options.getResponseContainerEl();
+
+            // open "wfs:FeatureCollection" element
+            if ( request.getVersion().equals( VERSION_100 ) ) {
+                if ( responseContainerEl != null ) {
+                    xmlStream.setPrefix( responseContainerEl.getPrefix(), responseContainerEl.getNamespaceURI() );
+                    xmlStream.writeStartElement( responseContainerEl.getNamespaceURI(), responseContainerEl.getLocalPart() );
+                    xmlStream.writeNamespace( responseContainerEl.getPrefix(), responseContainerEl.getNamespaceURI() );
+                } else {
+                    xmlStream.setPrefix( "wfs", WFS_NS );
+                    xmlStream.writeStartElement( WFS_NS, "FeatureCollection" );
+                    xmlStream.writeNamespace( "wfs", WFS_NS );
+                    if ( lock != null ) {
+                        xmlStream.writeAttribute( "lockId", lock.getId() );
+                    }
+                }
+            } else if ( request.getVersion().equals( VERSION_110 ) ) {
+                if ( responseContainerEl != null ) {
+                    xmlStream.setPrefix( responseContainerEl.getPrefix(), responseContainerEl.getNamespaceURI() );
+                    xmlStream.writeStartElement( responseContainerEl.getNamespaceURI(), responseContainerEl.getLocalPart() );
+                    xmlStream.writeNamespace( responseContainerEl.getPrefix(), responseContainerEl.getNamespaceURI() );
+                } else {
+                    xmlStream.setPrefix( "wfs", WFS_NS );
+                    xmlStream.writeStartElement( WFS_NS, "FeatureCollection" );
+                    xmlStream.writeNamespace( "wfs", WFS_NS );
+                    if ( lock != null ) {
+                        xmlStream.writeAttribute( "lockId", lock.getId() );
+                    }
+                    xmlStream.writeAttribute( "timeStamp", getTimestamp() );
+                }
+            } else if ( request.getVersion().equals( VERSION_200 ) ) {
+                xmlStream.setPrefix( "wfs", WFS_200_NS );
+                xmlStream.writeStartElement( WFS_200_NS, "FeatureCollection" );
+                xmlStream.writeNamespace( "wfs", WFS_200_NS );
+                xmlStream.writeAttribute( "timeStamp", getTimestamp() );
+                if ( lock != null ) {
+                    xmlStream.writeAttribute( "lockId", lock.getId() );
+                }
+            }
+
+            // ensure that namespace for feature member elements is bound
+            writeNamespaceIfNotBound( xmlStream, memberElementName.getPrefix(), memberElementName.getNamespaceURI() );
+
+            // ensure that namespace for gml (e.g. geometry elements) is bound
+            writeNamespaceIfNotBound( xmlStream, "gml", gmlVersion.getNamespace() );
+
+            if ( GML_32 == gmlVersion && !request.getVersion().equals( VERSION_200 ) ) {
+                xmlStream.writeAttribute( "gml", GML3_2_NS, "id", "WFS_RESPONSE" );
+            }            
+    		
+            gmlStream = createGMLStreamWriter( gmlVersion, xmlStream );
+			gmlStream.setProjections( analyzer.getProjections() );
+			gmlStream.setOutputCrs( analyzer.getRequestedCRS() );
+			gmlStream.setCoordinateFormatter( options.getFormatter() );
+			gmlStream.setGenerateBoundedByForFeatures( options.isGenerateBoundedByForFeatures() );
+			Map<String, String> prefixToNs = new HashMap<String, String>(
+			                                                              format.getMaster().getStoreManager().getPrefixToNs() );
+			prefixToNs.putAll( getFeatureTypeNsPrefixes( analyzer.getFeatureTypes() ) );
+			gmlStream.setNamespaceBindings( prefixToNs );
+			GmlXlinkOptions resolveOptions = new GmlXlinkOptions( request.getResolveParams() );
+			additionalObjects = new WfsXlinkStrategy( (BufferableXMLStreamWriter) xmlStream,
+			                                                           localReferencesPossible, xLinkTemplate,
+			                                                           resolveOptions );
+			gmlStream.setReferenceResolveStrategy( additionalObjects );
+    	}
+    }
 
     /**
      * Creates a new {@link GmlGetFeatureHandler} instance.
@@ -142,13 +277,10 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
 
         QueryAnalyzer analyzer = new QueryAnalyzer( request.getQueries(), format.getMaster(),
                                                     format.getMaster().getStoreManager(), options.isCheckAreaOfUse() );
-        Lock lock = acquireLock( request, analyzer );
-
-        String schemaLocation = getSchemaLocation( request.getVersion(), analyzer.getFeatureTypes() );
+        Lock lock = acquireLock( request, analyzer );        
 
         int traverseXLinkDepth = 0;
         BigInteger resolveTimeout = null;
-        String xLinkTemplate = getObjectXlinkTemplate( request.getVersion(), gmlVersion );
 
         if ( VERSION_110.equals( request.getVersion() ) || VERSION_200.equals( request.getVersion() ) ) {
             if ( request.getResolveParams().getDepth() != null ) {
@@ -173,66 +305,7 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
                 }
             }
         }
-
-        // quick check if local references in the output can be ruled out
-        boolean localReferencesPossible = localReferencesPossible( analyzer, traverseXLinkDepth );
-
-        String contentType = options.getMimeType();
-        XMLStreamWriter xmlStream = WebFeatureService.getXMLResponseWriter( response, contentType, schemaLocation );
-        xmlStream = new BufferableXMLStreamWriter( xmlStream, xLinkTemplate );
-
-        QName memberElementName = determineFeatureMemberElement( request.getVersion() );
-
-        QName responseContainerEl = options.getResponseContainerEl();
-
-        // open "wfs:FeatureCollection" element
-        if ( request.getVersion().equals( VERSION_100 ) ) {
-            if ( responseContainerEl != null ) {
-                xmlStream.setPrefix( responseContainerEl.getPrefix(), responseContainerEl.getNamespaceURI() );
-                xmlStream.writeStartElement( responseContainerEl.getNamespaceURI(), responseContainerEl.getLocalPart() );
-                xmlStream.writeNamespace( responseContainerEl.getPrefix(), responseContainerEl.getNamespaceURI() );
-            } else {
-                xmlStream.setPrefix( "wfs", WFS_NS );
-                xmlStream.writeStartElement( WFS_NS, "FeatureCollection" );
-                xmlStream.writeNamespace( "wfs", WFS_NS );
-                if ( lock != null ) {
-                    xmlStream.writeAttribute( "lockId", lock.getId() );
-                }
-            }
-        } else if ( request.getVersion().equals( VERSION_110 ) ) {
-            if ( responseContainerEl != null ) {
-                xmlStream.setPrefix( responseContainerEl.getPrefix(), responseContainerEl.getNamespaceURI() );
-                xmlStream.writeStartElement( responseContainerEl.getNamespaceURI(), responseContainerEl.getLocalPart() );
-                xmlStream.writeNamespace( responseContainerEl.getPrefix(), responseContainerEl.getNamespaceURI() );
-            } else {
-                xmlStream.setPrefix( "wfs", WFS_NS );
-                xmlStream.writeStartElement( WFS_NS, "FeatureCollection" );
-                xmlStream.writeNamespace( "wfs", WFS_NS );
-                if ( lock != null ) {
-                    xmlStream.writeAttribute( "lockId", lock.getId() );
-                }
-                xmlStream.writeAttribute( "timeStamp", getTimestamp() );
-            }
-        } else if ( request.getVersion().equals( VERSION_200 ) ) {
-            xmlStream.setPrefix( "wfs", WFS_200_NS );
-            xmlStream.writeStartElement( WFS_200_NS, "FeatureCollection" );
-            xmlStream.writeNamespace( "wfs", WFS_200_NS );
-            xmlStream.writeAttribute( "timeStamp", getTimestamp() );
-            if ( lock != null ) {
-                xmlStream.writeAttribute( "lockId", lock.getId() );
-            }
-        }
-
-        // ensure that namespace for feature member elements is bound
-        writeNamespaceIfNotBound( xmlStream, memberElementName.getPrefix(), memberElementName.getNamespaceURI() );
-
-        // ensure that namespace for gml (e.g. geometry elements) is bound
-        writeNamespaceIfNotBound( xmlStream, "gml", gmlVersion.getNamespace() );
-
-        if ( GML_32 == gmlVersion && !request.getVersion().equals( VERSION_200 ) ) {
-            xmlStream.writeAttribute( "gml", GML3_2_NS, "id", "WFS_RESPONSE" );
-        }
-
+        
         int returnMaxFeatures = options.getQueryMaxFeatures();
         if ( request.getPresentationParams().getCount() != null
              && ( options.getQueryMaxFeatures() < 1 || request.getPresentationParams().getCount().intValue() < options.getQueryMaxFeatures() ) ) {
@@ -244,29 +317,20 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
             startIndex = request.getPresentationParams().getStartIndex().intValue();
         }
 
-        GMLStreamWriter gmlStream = createGMLStreamWriter( gmlVersion, xmlStream );
-        gmlStream.setProjections( analyzer.getProjections() );
-        gmlStream.setOutputCrs( analyzer.getRequestedCRS() );
-        gmlStream.setCoordinateFormatter( options.getFormatter() );
-        gmlStream.setGenerateBoundedByForFeatures( options.isGenerateBoundedByForFeatures() );
-        Map<String, String> prefixToNs = new HashMap<String, String>(
-                                                                      format.getMaster().getStoreManager().getPrefixToNs() );
-        prefixToNs.putAll( getFeatureTypeNsPrefixes( analyzer.getFeatureTypes() ) );
-        gmlStream.setNamespaceBindings( prefixToNs );
-        GmlXlinkOptions resolveOptions = new GmlXlinkOptions( request.getResolveParams() );
-        WfsXlinkStrategy additionalObjects = new WfsXlinkStrategy( (BufferableXMLStreamWriter) xmlStream,
-                                                                   localReferencesPossible, xLinkTemplate,
-                                                                   resolveOptions );
-        gmlStream.setReferenceResolveStrategy( additionalObjects );
-
-        if ( options.isDisableStreaming() ) {
-            writeFeatureMembersCached( request.getVersion(), gmlStream, analyzer, gmlVersion, returnMaxFeatures,
-                                       startIndex, memberElementName, lock );
+        // quick check if local references in the output can be ruled out
+        boolean localReferencesPossible = localReferencesPossible( analyzer, traverseXLinkDepth );
+        
+        FeatureCollectionWriter writer = new FeatureCollectionWriter( request, response, analyzer, lock, localReferencesPossible );
+        
+		if ( options.isDisableStreaming() ) {
+            writeFeatureMembersCached( request.getVersion(), writer, analyzer, gmlVersion, returnMaxFeatures, startIndex, lock );
         } else {
-            writeFeatureMembersStream( request.getVersion(), gmlStream, analyzer, gmlVersion, returnMaxFeatures,
-                                       startIndex, memberElementName, lock );
+            writeFeatureMembersStream( request.getVersion(), writer, analyzer, gmlVersion, returnMaxFeatures, startIndex, lock );
         }
 
+        WfsXlinkStrategy additionalObjects = writer.getAdditionalObjects();
+        XMLStreamWriter xmlStream = writer.getXmlStream();
+        GMLStreamWriter gmlStream = writer.getGMLStreamWriter();
         if ( !additionalObjects.getAdditionalRefs().isEmpty() ) {
             if ( request.getVersion().equals( VERSION_200 ) ) {
                 xmlStream.writeStartElement( "wfs", "additionalObjects", WFS_200_NS );
@@ -274,7 +338,7 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
             } else {
                 xmlStream.writeComment( "Additional features (subfeatures of requested features)" );
             }
-            writeAdditionalObjects( gmlStream, additionalObjects, memberElementName );
+            writeAdditionalObjects( gmlStream, additionalObjects, writer.getMemberElementName() );
             if ( request.getVersion().equals( VERSION_200 ) ) {
                 xmlStream.writeEndElement();
                 xmlStream.writeEndElement();
@@ -390,33 +454,17 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
         xmlStream.flush();
     }
 
-    private void writeFeatureMembersStream( Version wfsVersion, GMLStreamWriter gmlStream, QueryAnalyzer analyzer,
-                                            GMLVersion outputFormat, int maxFeatures, int startIndex,
-                                            QName featureMemberEl, Lock lock )
+    private void writeFeatureMembersStream( Version wfsVersion, FeatureCollectionWriter writer, 
+    		QueryAnalyzer analyzer, GMLVersion outputFormat, int maxFeatures, int startIndex, Lock lock )
                             throws XMLStreamException, UnknownCRSException, TransformationException,
-                            FeatureStoreException, FilterEvaluationException, FactoryConfigurationError {
-
-        XMLStreamWriter xmlStream = gmlStream.getXMLStream();
-
-        if ( wfsVersion.equals( VERSION_200 ) ) {
-            xmlStream.writeAttribute( "numberMatched", "unknown" );
-            xmlStream.writeAttribute( "numberReturned", "0" );
-            xmlStream.writeComment( "NOTE: numberReturned attribute should be 'unknown' as well, but this would not validate against the current version of the WFS 2.0 schema (change upcoming). See change request (CR 144): https://portal.opengeospatial.org/files?artifact_id=43925." );
-        }
-
-        if ( outputFormat == GML_2 ) {
-            // "gml:boundedBy" is necessary for GML 2 schema compliance
-            xmlStream.writeStartElement( "gml", "boundedBy", GMLNS );
-            xmlStream.writeStartElement( GMLNS, "null" );
-            xmlStream.writeCharacters( "unknown" );
-            xmlStream.writeEndElement();
-            xmlStream.writeEndElement();
-        }
+                            FeatureStoreException, FilterEvaluationException, FactoryConfigurationError, IOException {
 
         // retrieve and write result features
         int featuresAdded = 0;
         int featuresSkipped = 0;
-        GmlXlinkOptions resolveState = gmlStream.getReferenceResolveStrategy().getResolveOptions();
+        GMLStreamWriter gmlStream = null;
+        GmlXlinkOptions resolveState = null;
+        QName featureMemberEl = null;
         for ( Map.Entry<FeatureStore, List<Query>> fsToQueries : analyzer.getQueries().entrySet() ) {
             FeatureStore fs = fsToQueries.getKey();
             Query[] queries = fsToQueries.getValue().toArray( new Query[fsToQueries.getValue().size()] );
@@ -433,6 +481,30 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
                     if ( featuresSkipped < startIndex ) {
                         featuresSkipped++;
                     } else {
+                    	if( featuresAdded == 0) {
+                    		gmlStream = writer.getGMLStreamWriter();
+                    		resolveState = gmlStream.getReferenceResolveStrategy().getResolveOptions();
+                            XMLStreamWriter xmlStream = gmlStream.getXMLStream();
+
+                            if ( wfsVersion.equals( VERSION_200 ) ) {
+                                xmlStream.writeAttribute( "numberMatched", "unknown" );
+                                xmlStream.writeAttribute( "numberReturned", "0" );
+                                xmlStream.writeComment( "NOTE: numberReturned attribute should be 'unknown' as well, but this would not validate against the current version of the WFS 2.0 schema (change upcoming). See change request (CR 144): https://portal.opengeospatial.org/files?artifact_id=43925." );
+                            }
+
+                            if ( outputFormat == GML_2 ) {
+                                // "gml:boundedBy" is necessary for GML 2 schema compliance
+                                xmlStream.writeStartElement( "gml", "boundedBy", GMLNS );
+                                xmlStream.writeStartElement( GMLNS, "null" );
+                                xmlStream.writeCharacters( "unknown" );
+                                xmlStream.writeEndElement();
+                                xmlStream.writeEndElement();
+                            }
+                            
+                            featureMemberEl = writer.getMemberElementName();
+                    	}
+                    	
+                    	XMLStreamWriter xmlStream = gmlStream.getXMLStream();
                         writeMemberFeature( member, gmlStream, xmlStream, resolveState, featureMemberEl );
                         featuresAdded++;
                     }
@@ -444,11 +516,10 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
         }
     }
 
-    private void writeFeatureMembersCached( Version wfsVersion, GMLStreamWriter gmlStream, QueryAnalyzer analyzer,
-                                            GMLVersion outputFormat, int maxFeatures, int startIndex,
-                                            QName featureMemberEl, Lock lock )
+    private void writeFeatureMembersCached( Version wfsVersion, FeatureCollectionWriter writer, 
+    		QueryAnalyzer analyzer, GMLVersion outputFormat, int maxFeatures, int startIndex, Lock lock )
                             throws XMLStreamException, UnknownCRSException, TransformationException,
-                            FeatureStoreException, FilterEvaluationException, FactoryConfigurationError {
+                            FeatureStoreException, FilterEvaluationException, FactoryConfigurationError, IOException {
 
         FeatureCollection allFeatures = new GenericFeatureCollection();
         Set<String> fids = new HashSet<String>();
@@ -482,7 +553,9 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
             }
         }
 
+        GMLStreamWriter gmlStream = writer.getGMLStreamWriter();        
         XMLStreamWriter xmlStream = gmlStream.getXMLStream();
+        QName featureMemberEl = writer.getMemberElementName();
         if ( wfsVersion.equals( VERSION_200 ) ) {
             xmlStream.writeAttribute( "numberMatched", "" + allFeatures.size() );
             xmlStream.writeAttribute( "numberReturned", "" + allFeatures.size() );
