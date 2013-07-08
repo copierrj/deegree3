@@ -47,7 +47,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-public class TestContext {
+public class SpringResourceBuilderTestContext {
 
     public static class TestResource implements Resource {
 

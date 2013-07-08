@@ -37,7 +37,7 @@
  http://www.geographie.uni-bonn.de/deegree/
 
  e-mail: info@deegree.org
-----------------------------------------------------------------------------*/
+ ----------------------------------------------------------------------------*/
 package org.deegree.spring.bootstrap;
 
 import org.deegree.spring.ApplicationContextHolder;
@@ -48,18 +48,19 @@ import org.deegree.workspace.ResourceInitException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.springframework.context.annotation.AnnotationConfigApplicationContext;
-import org.springframework.context.support.GenericXmlApplicationContext;
+import org.springframework.beans.factory.support.DefaultListableBeanFactory;
+import org.springframework.beans.factory.xml.XmlBeanDefinitionReader;
+import org.springframework.context.annotation.AnnotatedBeanDefinitionReader;
+import org.springframework.context.support.GenericApplicationContext;
 
-/** 
- * The BootstrapApplicationContextHolderBuilder bootstraps a
- * Spring {@link org.springframework.context.ApplicationContext} and
- * wraps it in an {@link org.deegree.spring.ApplicationContextHolder}
+/**
+ * The BootstrapApplicationContextHolderBuilder bootstraps a Spring
+ * {@link org.springframework.context.ApplicationContext} and wraps it in an
+ * {@link org.deegree.spring.ApplicationContextHolder}
  * 
  * This builder is the deegree workspace equivalent of Spring classes like
- * {@link org.springframework.web.servlet.FrameworkServlet}, 
- * {@link org.springframework.web.context.ContextLoaderListener} or
- * other Spring classes that construct a root
+ * {@link org.springframework.web.servlet.FrameworkServlet},
+ * {@link org.springframework.web.context.ContextLoaderListener} or other Spring classes that construct a root
  * {@link org.springframework.context.ApplicationContext}.
  * 
  * @author <a href="mailto:reijer.copier@idgis.nl">Reijer Copier</a>
@@ -68,19 +69,22 @@ import org.springframework.context.support.GenericXmlApplicationContext;
  * @version $Revision$, $Date$
  */
 public class BootstrapApplicationContextHolderBuilder implements ResourceBuilder<ApplicationContextHolder> {
-    
+
     private static final Logger LOG = LoggerFactory.getLogger( BootstrapApplicationContextHolderBuilder.class );
 
     private final BootstrapApplicationContextHolderMetadata metadata;
 
     private final BootstrapApplicationContextHolderConfig config;
 
-    private final ClassLoader classLoader; 
+    private final ClassLoader classLoader;
 
-    public BootstrapApplicationContextHolderBuilder( ClassLoader classLoader,
+    private final DefaultListableBeanFactory beanFactory;
+
+    public BootstrapApplicationContextHolderBuilder( ClassLoader classLoader, DefaultListableBeanFactory beanFactory,
                                                      BootstrapApplicationContextHolderMetadata metadata,
                                                      BootstrapApplicationContextHolderConfig config ) {
         this.classLoader = classLoader;
+        this.beanFactory = beanFactory;
         this.metadata = metadata;
         this.config = config;
     }
@@ -88,35 +92,39 @@ public class BootstrapApplicationContextHolderBuilder implements ResourceBuilder
     @Override
     public ApplicationContextHolder build() {
         LOG.debug( "Building BootstrapApplicationContextHolder." );
-        
+
+        final GenericApplicationContext context = new GenericApplicationContext( beanFactory );
+        context.setClassLoader( classLoader );
+
         try {
             final String contextClass = config.getContextClass();
 
             if ( contextClass != null ) {
                 LOG.debug( "Using ContextClass {}", contextClass );
 
-                final AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext();
-                context.setClassLoader( classLoader );
-                context.register( classLoader.loadClass( contextClass ) );
-                context.refresh();
-
-                return new ApplicationContextHolder( metadata, context );
+                final AnnotatedBeanDefinitionReader defReader = new AnnotatedBeanDefinitionReader( context );
+                defReader.register( classLoader.loadClass( contextClass ) );
             } else {
                 final String contextConfigLocation = config.getContextConfigLocation();
                 if ( contextConfigLocation == null ) {
+                    context.close();
+
                     throw new ResourceInitException(
                                                      "Both ContextClass and ContextConfigLocation are missing from BootstrapApplicationContextHolderConfig" );
                 }
 
                 LOG.debug( "Using ContextConfigLocation {}", contextConfigLocation );
-                final GenericXmlApplicationContext context = new GenericXmlApplicationContext();
-                context.setClassLoader( classLoader );
-                context.load( contextConfigLocation );
-                context.refresh();
 
-                return new ApplicationContextHolder( metadata, context );
+                final XmlBeanDefinitionReader defReader = new XmlBeanDefinitionReader( context );
+                defReader.loadBeanDefinitions( contextConfigLocation );
             }
+
+            context.refresh();
+
+            return new ApplicationContextHolder( metadata, context );
         } catch ( Exception e ) {
+            context.close();
+
             LOG.debug( "Couldn't build BootstrapApplicationContextHolder", e );
             throw new ResourceInitException( "Couldn't build BootstrapApplicationContextHolder", e );
         }

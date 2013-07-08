@@ -40,9 +40,9 @@
  ----------------------------------------------------------------------------*/
 package org.deegree.spring;
 
-import org.deegree.spring.TestContext.ContentBean;
-import org.deegree.spring.TestContext.NoBean;
-import org.deegree.spring.TestContext.SingleBean;
+import org.deegree.spring.SpringResourceBuilderTestContext.ContentBean;
+import org.deegree.spring.SpringResourceBuilderTestContext.NoBean;
+import org.deegree.spring.SpringResourceBuilderTestContext.SingleBean;
 
 import org.deegree.workspace.ResourceInitException;
 import org.deegree.workspace.Workspace;
@@ -60,7 +60,7 @@ import static org.mockito.Mockito.when;
 
 public class AbstractSpringResourceBuilderTest {
 
-    AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext( TestContext.class );
+    AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext( SpringResourceBuilderTestContext.class );
 
     ApplicationContextHolder contextHolder = new ApplicationContextHolder( null, context );
 

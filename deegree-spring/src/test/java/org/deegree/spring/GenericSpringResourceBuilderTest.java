@@ -49,7 +49,7 @@ import static org.mockito.Mockito.when;
 import java.io.InputStream;
 import java.net.URL;
 
-import org.deegree.spring.TestContext.SingleBean;
+import org.deegree.spring.SpringResourceBuilderTestContext.SingleBean;
 import org.deegree.workspace.ResourceBuilder;
 import org.deegree.workspace.ResourceLocation;
 import org.deegree.workspace.ResourceMetadata;
@@ -62,7 +62,7 @@ import org.springframework.context.annotation.AnnotationConfigApplicationContext
 
 public class GenericSpringResourceBuilderTest {
 
-    AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext( TestContext.class );
+    AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext( SpringResourceBuilderTestContext.class );
 
     ApplicationContextHolder contextHolder = new ApplicationContextHolder( null, context );
 
