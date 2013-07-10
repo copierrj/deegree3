@@ -17,10 +17,13 @@
       </appinfo>
     </annotation>
     <complexType>
+      <sequence>        
       <choice>
         <element name="ContextConfigLocation" type="string" />
-        <element name="ContextClass" type="string" />
+        <element name="ContextClass" type="string" />        
       </choice>
+        <element name="AutowireWorkspaceResources" type="boolean" default="false"/>
+      </sequence>
     </complexType>        
   </element>
 </schema>

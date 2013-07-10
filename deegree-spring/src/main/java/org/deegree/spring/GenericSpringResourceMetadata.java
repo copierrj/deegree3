@@ -40,26 +40,33 @@
 ----------------------------------------------------------------------------*/
 package org.deegree.spring;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import javax.xml.bind.JAXBElement;
 
 import org.deegree.commons.xml.jaxb.JAXBUtils;
+import org.deegree.spring.jaxb.DependenciesType;
 import org.deegree.spring.jaxb.SingleBeanRef;
 
 import org.deegree.workspace.Resource;
 import org.deegree.workspace.ResourceBuilder;
+import org.deegree.workspace.ResourceIdentifier;
 import org.deegree.workspace.ResourceInitException;
 import org.deegree.workspace.ResourceLocation;
+import org.deegree.workspace.ResourceManager;
+import org.deegree.workspace.ResourceMetadata;
 import org.deegree.workspace.Workspace;
 import org.deegree.workspace.standard.AbstractResourceMetadata;
 import org.deegree.workspace.standard.AbstractResourceProvider;
 import org.deegree.workspace.standard.DefaultResourceIdentifier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * A GenericSpringResourceMetadata is to be used as the 
- * {@link org.deegree.workspace.ResourceMetadata} for resources
- * provided by {@link org.deegree.spring.GenericSpringResourceBuilder}.
- * It registers the configured 
- * {@link org.deegree.spring.ApplicationContextHolder} as dependency.
+ * A GenericSpringResourceMetadata is to be used as the {@link org.deegree.workspace.ResourceMetadata} for resources
+ * provided by {@link org.deegree.spring.GenericSpringResourceBuilder}. Configured dependencies are provided to deegree. 
+ * It also registers the configured {@link org.deegree.spring.ApplicationContextHolder} as dependency.
  * 
  * @author <a href="mailto:reijer.copier@idgis.nl">Reijer Copier</a>
  * @author last edited by: $Author$
@@ -67,6 +74,8 @@ import org.deegree.workspace.standard.DefaultResourceIdentifier;
  * @version $Revision$, $Date$
  */
 public class GenericSpringResourceMetadata<T extends Resource> extends AbstractResourceMetadata<T> {
+
+    private static final Logger LOG = LoggerFactory.getLogger( GenericSpringResourceBuilder.class );
 
     private final String configJaxbPackage;
 
@@ -77,7 +86,7 @@ public class GenericSpringResourceMetadata<T extends Resource> extends AbstractR
                                           final Class<T> clazz ) {
         super( workspace, location, provider );
 
-        this.configJaxbPackage = configJaxbPackage;        
+        this.configJaxbPackage = configJaxbPackage;
         this.clazz = clazz;
     }
 
@@ -86,7 +95,8 @@ public class GenericSpringResourceMetadata<T extends Resource> extends AbstractR
         final SingleBeanRef config;
 
         try {
-            final JAXBElement<?> element = (JAXBElement<?>) JAXBUtils.unmarshall( configJaxbPackage, provider.getSchema(),
+            final JAXBElement<?> element = (JAXBElement<?>) JAXBUtils.unmarshall( configJaxbPackage,
+                                                                                  provider.getSchema(),
                                                                                   location.getAsStream(), workspace );
             if ( element.getDeclaredType().equals( SingleBeanRef.class ) ) {
                 config = (SingleBeanRef) element.getValue();
@@ -95,6 +105,21 @@ public class GenericSpringResourceMetadata<T extends Resource> extends AbstractR
                 dependencies.add( new DefaultResourceIdentifier<ApplicationContextHolder>(
                                                                                            ApplicationContextHolderProvider.class,
                                                                                            applicationContextHolder ) );
+
+                final DependenciesType configDependencies = config.getDependencies();
+                if ( configDependencies != null ) {
+                    final Set<String> dependenciesSet = new HashSet<String>( configDependencies.getDependency() );
+                    for ( final ResourceManager<?> resourceManager : workspace.getResourceManagers() ) {
+                        final String workspacePath = resourceManager.getMetadata().getWorkspacePath();
+                        for ( final ResourceMetadata<?> resourceMetadata : resourceManager.getResourceMetadata() ) {
+                            final ResourceIdentifier<?> resourceIdentifier = resourceMetadata.getIdentifier();
+                            if ( dependenciesSet.contains( workspacePath + "/" + resourceIdentifier.getId() ) ) {
+                                LOG.debug( "Adding dependency to {}", resourceIdentifier );
+                                dependencies.add( resourceIdentifier );
+                            }
+                        }
+                    }
+                }
             } else {
                 throw new ResourceInitException( "Wrong configuration object passed to GenericSpringResourceMetadata." );
             }

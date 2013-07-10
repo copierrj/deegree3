@@ -37,18 +37,20 @@
  http://www.geographie.uni-bonn.de/deegree/
 
  e-mail: info@deegree.org
-----------------------------------------------------------------------------*/
+ ----------------------------------------------------------------------------*/
 package org.deegree.spring;
+
+import java.util.Map;
 
 import org.deegree.workspace.Resource;
 import org.deegree.workspace.ResourceMetadata;
-
-import org.springframework.context.ApplicationContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ConfigurableApplicationContext;
 
 /**
- * The ApplicationContextHolder is a deegree {@link org.deegree.workspace.Resource}
- * that contains a Spring {@link org.springframework.context.ApplicationContext}.
+ * The ApplicationContextHolder is a deegree {@link org.deegree.workspace.Resource} that contains a Spring
+ * {@link org.springframework.context.ApplicationContext}.
  * 
  * @author <a href="mailto:reijer.copier@idgis.nl">Reijer Copier</a>
  * @author last edited by: $Author$
@@ -56,6 +58,8 @@ import org.springframework.context.ConfigurableApplicationContext;
  * @version $Revision$, $Date$
  */
 public class ApplicationContextHolder implements Resource {
+
+    private static final Logger LOG = LoggerFactory.getLogger( ApplicationContextHolder.class );
 
     private final ResourceMetadata<ApplicationContextHolder> metadata;
 
@@ -82,7 +86,15 @@ public class ApplicationContextHolder implements Resource {
         applicationContext.close();
     }
 
-    public ApplicationContext getApplicationContext() {
-        return applicationContext;
+    <T> T getBean( String name, Class<T> requiredType ) {
+        LOG.debug( "Bean '{}' of type '{}' fetched", name, requiredType );
+
+        return applicationContext.getBean( name, requiredType );
     }
+
+    <T> Map<String, T> getBeansOfType( Class<T> requiredType ) {
+        LOG.debug( "Beans of type '{}' fetched", requiredType );
+
+        return applicationContext.getBeansOfType( requiredType );
+    }    
 }

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xmlns="http://www.w3.org/2001/XMLSchema" targetNamespace="http://www.deegree.org/spring/generic"
+	xmlns:g="http://www.deegree.org/spring/generic"
 	elementFormDefault="qualified" xmlns:jaxb="http://java.sun.com/xml/ns/jaxb"
 	jaxb:version="2.1">
 	
@@ -12,10 +13,17 @@
 		</appinfo>
 	</annotation>
 	
+	<complexType name="DependenciesType">
+		<sequence>
+			<element name="Dependency" type="string" maxOccurs="unbounded"/>
+		</sequence>
+	</complexType>
+	
 	<complexType name="SingleBeanRef">
 		<sequence>
 			<element name="ApplicationContextHolder" type="string" />
 			<element name="BeanName" type="string" minOccurs="0" />
+			<element name="Dependencies" type="g:DependenciesType" minOccurs="0"/>
 		</sequence>
 	</complexType>
 </schema>

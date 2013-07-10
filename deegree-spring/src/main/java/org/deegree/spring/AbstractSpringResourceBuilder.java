@@ -50,8 +50,6 @@ import org.deegree.workspace.Workspace;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.springframework.context.ApplicationContext;
-
 /**
  * The AbstractSpringResourceBuilder can be extended in order to create a 
  * {@link org.deegree.workspace.ResourceBuilder} that fetches beans from 
@@ -123,12 +121,11 @@ public abstract class AbstractSpringResourceBuilder<T extends Resource> implemen
 
         final ApplicationContextHolder applicationContextHolder = workspace.getResource( ApplicationContextHolderProvider.class,
                                                                                          applicationContextHolderId );
-        final ApplicationContext applicationContext = applicationContextHolder.getApplicationContext();
 
         final B bean;
         if ( beanName != null ) {
             try {
-                bean = applicationContext.getBean( beanName, clazz );
+                bean = applicationContextHolder.getBean( beanName, clazz );
 
                 LOG.info( "Bean with name '{}' fetched from ApplicationContext.", beanName );
             } catch ( Exception e ) {
@@ -136,7 +133,7 @@ public abstract class AbstractSpringResourceBuilder<T extends Resource> implemen
                                                  + beanName + "' from ApplicationContext.", e );
             }
         } else {
-            final Map<String, B> beans = applicationContext.getBeansOfType( clazz );
+            final Map<String, B> beans = applicationContextHolder.getBeansOfType( clazz );
             switch ( beans.size() ) {
             case 0:
                 throw new ResourceInitException( "No beans of type " + className

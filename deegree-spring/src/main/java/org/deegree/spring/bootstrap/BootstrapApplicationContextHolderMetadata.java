@@ -37,13 +37,14 @@
  http://www.geographie.uni-bonn.de/deegree/
 
  e-mail: info@deegree.org
-----------------------------------------------------------------------------*/
+ ----------------------------------------------------------------------------*/
 package org.deegree.spring.bootstrap;
 
 import static org.deegree.spring.bootstrap.BootstrapApplicationContextHolderProvider.CONFIG_SCHEMA;
 
 import org.deegree.commons.xml.jaxb.JAXBUtils;
 import org.deegree.spring.ApplicationContextHolder;
+import org.deegree.spring.WorkspaceBeanFactory;
 import org.deegree.spring.bootstrap.jaxb.BootstrapApplicationContextHolderConfig;
 import org.deegree.workspace.ResourceBuilder;
 import org.deegree.workspace.ResourceInitException;
@@ -54,10 +55,11 @@ import org.deegree.workspace.standard.AbstractResourceProvider;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.QualifierAnnotationAutowireCandidateResolver;
+import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 
-/** 
- * BootstrapApplicationContextHolderMetadata is used as
- * {@link org.deegree.workspace.ResourceMetadata} by 
+/**
+ * BootstrapApplicationContextHolderMetadata is used as {@link org.deegree.workspace.ResourceMetadata} by
  * {@link org.deegree.spring.bootstrap.BootstrapApplicationContextHolderProvider}.
  * 
  * @author <a href="mailto:reijer.copier@idgis.nl">Reijer Copier</a>
@@ -90,6 +92,16 @@ public class BootstrapApplicationContextHolderMetadata extends AbstractResourceM
             throw new ResourceInitException( e.getLocalizedMessage(), e );
         }
 
-        return new BootstrapApplicationContextHolderBuilder( workspace.getModuleClassLoader(), this, config );
+        final DefaultListableBeanFactory beanFactory;
+        final Boolean autowire = config.isAutowireWorkspaceResources();
+        if ( autowire != null && autowire ) {
+            beanFactory = new WorkspaceBeanFactory( workspace );
+        } else {
+            beanFactory = new DefaultListableBeanFactory();
+        }
+
+        beanFactory.setAutowireCandidateResolver( new QualifierAnnotationAutowireCandidateResolver() );
+        return new BootstrapApplicationContextHolderBuilder( workspace.getModuleClassLoader(), beanFactory, this,
+                                                             config );
     }
 }
