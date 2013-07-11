@@ -1,9 +1,11 @@
 package org.deegree.spring;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.GenericDeclaration;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -32,46 +34,52 @@ public class WorkspaceBeanFactory extends DefaultListableBeanFactory {
         this.workspace = workspace;
     }
 
-    @SuppressWarnings({ "unchecked", "rawtypes" })
-    protected Class<? extends Resource> getResourceClass( final Class<? extends ResourceManager> managerClass ) {
-        return (Class<? extends Resource>) doGetResourceClass( managerClass );
-    }
+    protected Type[] getTypes( Class<?> clazz, Class<?> interfaze ) {
+        final Map<Class<?>, ParameterizedType> typeChain = new HashMap<Class<?>, ParameterizedType>();
 
-    private Type locateResourceType( Type t ) {
-        if ( t instanceof ParameterizedType ) {
-            final ParameterizedType pt = (ParameterizedType) t;
-            for ( final Type typeArgument : pt.getActualTypeArguments() ) {
-                if ( typeArgument instanceof Class ) {
-                    if ( Resource.class.isAssignableFrom( (Class<?>) typeArgument ) ) {
-                        return typeArgument;
+        Class<?> currentClass = clazz;
+        while ( currentClass != null ) {
+            Type superClass = currentClass.getGenericSuperclass(); 
+            if(superClass instanceof ParameterizedType) {
+                typeChain.put( currentClass.getSuperclass(), (ParameterizedType)superClass );
+            }
+
+            for ( final Type genericInterface : currentClass.getGenericInterfaces() ) {
+                if ( genericInterface instanceof ParameterizedType ) {
+                    final ParameterizedType pType = (ParameterizedType) genericInterface;
+                    if ( pType.getRawType().equals( interfaze ) ) {
+                        final Type[] typeArguments = pType.getActualTypeArguments();
+                        for ( int i = 0; i < typeArguments.length; i++ ) {
+                            final Type typeArgument = typeArguments[i];
+                            if ( typeArgument instanceof TypeVariable ) {
+                                final TypeVariable<?> typeVariable = (TypeVariable<?>) typeArgument;
+                                final GenericDeclaration declaration = typeVariable.getGenericDeclaration();
+
+                                final Type[] typeParams = declaration.getTypeParameters();
+                                for ( int j = 0; j < typeParams.length; j++ ) {
+                                    final Type typeParam = typeParams[j];
+                                    if ( typeParam.equals( typeArgument ) ) {
+                                        typeArguments[i] = typeChain.get( declaration ).getActualTypeArguments()[j];
+                                    }
+                                }
+                            }
+                        }
+                        return typeArguments;
                     }
                 }
             }
+
+            currentClass = currentClass.getSuperclass();
         }
 
         return null;
     }
 
-    private Type doGetResourceClass( final Class<?> managerClass ) {
-        if ( managerClass == null ) {
-            return null;
-        }
-
-        for ( final Type genericInterface : managerClass.getGenericInterfaces() ) {
-            final Type t = locateResourceType( genericInterface );
-            if ( t != null ) {
-                return t;
-            }
-        }
-
-        final Type t = locateResourceType( managerClass.getGenericSuperclass() );
-        if ( t != null ) {
-            return t;
-        }
-
-        return doGetResourceClass( managerClass.getSuperclass() );
-    }
-
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    protected Class<? extends Resource> getResourceClass( final Class<? extends ResourceManager> managerClass ) {
+        return (Class<? extends Resource>) getTypes(managerClass, ResourceManager.class)[0];
+    }    
+    
     protected Object getProxy( Class<?> type, ResourceIdentifier<?> resourceIdentifier ) {
         return Proxy.newProxyInstance( workspace.getModuleClassLoader(), new Class<?>[] { type },
                                        new ResourceInvocationHandler( workspace, resourceIdentifier ) );
