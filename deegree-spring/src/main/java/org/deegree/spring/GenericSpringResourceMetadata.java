@@ -75,7 +75,7 @@ import org.slf4j.LoggerFactory;
  */
 public class GenericSpringResourceMetadata<T extends Resource> extends AbstractResourceMetadata<T> {
 
-    private static final Logger LOG = LoggerFactory.getLogger( GenericSpringResourceBuilder.class );
+    private static final Logger LOG = LoggerFactory.getLogger( GenericSpringResourceMetadata.class );
 
     private final String configJaxbPackage;
 

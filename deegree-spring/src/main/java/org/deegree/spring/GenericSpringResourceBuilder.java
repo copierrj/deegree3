@@ -108,6 +108,8 @@ public class GenericSpringResourceBuilder<T extends Resource> extends AbstractSp
 
     @Override
     public T build() {
+        LOG.debug("Fetching bean from context, name: {} class: {}", beanName, clazz);
+        
         final T t = getBean( clazz, beanName );
 
         try {
