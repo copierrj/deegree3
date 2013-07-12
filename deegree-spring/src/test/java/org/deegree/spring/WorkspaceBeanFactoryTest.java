@@ -87,20 +87,41 @@ public class WorkspaceBeanFactoryTest {
         assertNotNull( testBean );
         assertNotNull( testBean.testResource );
     }
-    
-    interface TestInterface<T> {        
-    
+
+    interface TestInterface<T> {
+
     }
-    
-    static abstract class TestClass<U, V> implements TestInterface<U>{
-        
+
+    interface AnotherTestInterface<U, V, W> extends TestInterface<W> {
+
+    }
+
+    interface YetAnotherTestInterface extends AnotherTestInterface<Number, Integer, String> {
+
+    }
+
+    static abstract class TestClass<U, V, W> implements TestInterface<V> {
+
+    }
+
+    static abstract class AnotherTestClass<X> extends TestClass<Double, X, Integer> {
+
     }
     
     @Test
     public void testGetTypes() {
         WorkspaceBeanFactory beanFactory = new WorkspaceBeanFactory( workspace );
-        
-        TestInterface<String> testInterface = new TestClass<String, Integer>() {};
-        assertEquals(String.class, beanFactory.getTypes(testInterface.getClass(), TestInterface.class)[0]);
+
+        final TestClass<?, ?, ?> testClass = new TestClass<Number, Double, Float>() {
+        };
+        assertEquals( Double.class, beanFactory.getTypes( testClass.getClass(), TestInterface.class )[0] );
+
+        final AnotherTestClass<?> anotherTestClass = new AnotherTestClass<String>() {
+        };
+        assertEquals( String.class, beanFactory.getTypes( anotherTestClass.getClass(), TestInterface.class )[0] );
+
+        final YetAnotherTestInterface yetAnotherTestInterface = new YetAnotherTestInterface() {           
+        };
+        assertEquals( String.class, beanFactory.getTypes( yetAnotherTestInterface.getClass(), TestInterface.class )[0] );
     }
 }

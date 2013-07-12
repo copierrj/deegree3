@@ -34,42 +34,85 @@ public class WorkspaceBeanFactory extends DefaultListableBeanFactory {
         this.workspace = workspace;
     }
 
+    private Type resolveVariable( final TypeVariable<?> typeVariable,
+                                  final Map<Class<?>, ParameterizedType> parameterizedTypes ) {
+        final GenericDeclaration genericDeclaration = typeVariable.getGenericDeclaration();
+
+        final Type[] typeParams = genericDeclaration.getTypeParameters();
+        for ( int j = 0; j < typeParams.length; j++ ) {
+            final Type typeParam = typeParams[j];
+            if ( typeParam.equals( typeVariable ) ) {
+                final ParameterizedType parameterizedType = parameterizedTypes.get( genericDeclaration );
+                if ( parameterizedType == null ) {
+                    throw new IllegalArgumentException( "Parameterized type missing" );
+                }
+
+                Type typeArgument = parameterizedType.getActualTypeArguments()[j];
+                if ( typeArgument instanceof Class<?> ) {
+                    return (Class<?>) typeArgument;
+                } else if ( typeArgument instanceof TypeVariable ) {
+                    return resolveVariable( (TypeVariable<?>) typeArgument, parameterizedTypes );
+                }
+
+                throw new IllegalStateException( "Unexpected Type type" );
+            }
+        }
+
+        throw new IllegalStateException( "Parameter not found" );
+    }
+
     protected Type[] getTypes( Class<?> clazz, Class<?> interfaze ) {
-        final Map<Class<?>, ParameterizedType> typeChain = new HashMap<Class<?>, ParameterizedType>();
+        if ( !interfaze.isAssignableFrom( clazz ) ) {
+            throw new IllegalArgumentException( "Class doesn't implement interface" );
+        }
+
+        final Map<Class<?>, ParameterizedType> parameterizedTypes = new HashMap<Class<?>, ParameterizedType>();
 
         Class<?> currentClass = clazz;
         while ( currentClass != null ) {
-            Type superClass = currentClass.getGenericSuperclass(); 
-            if(superClass instanceof ParameterizedType) {
-                typeChain.put( currentClass.getSuperclass(), (ParameterizedType)superClass );
+            Type superClass = currentClass.getGenericSuperclass();
+            if ( superClass instanceof ParameterizedType ) {
+                parameterizedTypes.put( currentClass.getSuperclass(), (ParameterizedType) superClass );
             }
 
-            for ( final Type genericInterface : currentClass.getGenericInterfaces() ) {
-                if ( genericInterface instanceof ParameterizedType ) {
-                    final ParameterizedType pType = (ParameterizedType) genericInterface;
-                    if ( pType.getRawType().equals( interfaze ) ) {
-                        final Type[] typeArguments = pType.getActualTypeArguments();
-                        for ( int i = 0; i < typeArguments.length; i++ ) {
-                            final Type typeArgument = typeArguments[i];
-                            if ( typeArgument instanceof TypeVariable ) {
-                                final TypeVariable<?> typeVariable = (TypeVariable<?>) typeArgument;
-                                final GenericDeclaration declaration = typeVariable.getGenericDeclaration();
-
-                                final Type[] typeParams = declaration.getTypeParameters();
-                                for ( int j = 0; j < typeParams.length; j++ ) {
-                                    final Type typeParam = typeParams[j];
-                                    if ( typeParam.equals( typeArgument ) ) {
-                                        typeArguments[i] = typeChain.get( declaration ).getActualTypeArguments()[j];
-                                    }
-                                }
-                            }
-                        }
-                        return typeArguments;
-                    }
-                }
+            final Type[] types = getTypes( currentClass, interfaze, parameterizedTypes );
+            if ( types != null ) {
+                return types;
             }
 
             currentClass = currentClass.getSuperclass();
+        }
+
+        throw new IllegalStateException( "Interface not found" );
+    }
+
+    private Type[] getTypes( Class<?> clazz, Class<?> interfaze,
+                             final Map<Class<?>, ParameterizedType> parameterizedTypes ) {
+        for ( final Type genericInterface : clazz.getGenericInterfaces() ) {
+            if ( genericInterface instanceof ParameterizedType ) {
+                final ParameterizedType parameterizedType = (ParameterizedType) genericInterface;
+                final Class<?> rawType = (Class<?>) parameterizedType.getRawType();
+
+                parameterizedTypes.put( rawType, parameterizedType );
+
+                if ( rawType.equals( interfaze ) ) {
+                    final Type[] typeArguments = parameterizedType.getActualTypeArguments();
+                    for ( int i = 0; i < typeArguments.length; i++ ) {
+                        final Type typeArgument = typeArguments[i];
+                        if ( typeArgument instanceof TypeVariable ) {
+                            typeArguments[i] = resolveVariable( (TypeVariable<?>) typeArgument, parameterizedTypes );
+                        }
+                    }
+                    return typeArguments;
+                }
+            }
+        }
+
+        for ( final Class<?> currentInterface : clazz.getInterfaces() ) {
+            final Type[] types = getTypes( currentInterface, interfaze, parameterizedTypes );
+            if ( types != null ) {
+                return types;
+            }
         }
 
         return null;
@@ -77,9 +120,9 @@ public class WorkspaceBeanFactory extends DefaultListableBeanFactory {
 
     @SuppressWarnings({ "unchecked", "rawtypes" })
     protected Class<? extends Resource> getResourceClass( final Class<? extends ResourceManager> managerClass ) {
-        return (Class<? extends Resource>) getTypes(managerClass, ResourceManager.class)[0];
-    }    
-    
+        return (Class<? extends Resource>) getTypes( managerClass, ResourceManager.class )[0];
+    }
+
     protected Object getProxy( Class<?> type, ResourceIdentifier<?> resourceIdentifier ) {
         return Proxy.newProxyInstance( workspace.getModuleClassLoader(), new Class<?>[] { type },
                                        new ResourceInvocationHandler( workspace, resourceIdentifier ) );
