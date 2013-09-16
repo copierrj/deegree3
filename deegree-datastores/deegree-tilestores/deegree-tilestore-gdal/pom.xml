@@ -11,45 +11,6 @@
     <version>3.4-pre6-SNAPSHOT</version>
   </parent>
 
-  <scm>
-    <connection>scm:git:git@office.occamlabs.de:deegree-tilestore-gdal.git</connection>
-    <developerConnection>scm:git:git@office.occamlabs.de:deegree-tilestore-gdal.git</developerConnection>
-  </scm>
-
-  <repositories>
-    <repository>
-      <id>idgis-repo</id>
-      <url>https://jenkins.occamlabs.de/nexus/content/groups/idgis/</url>
-      <releases>
-        <updatePolicy>never</updatePolicy>
-      </releases>
-      <snapshots>
-        <enabled>true</enabled>
-      </snapshots>
-    </repository>
-    <repository>
-      <id>osgeo-geotools</id>
-      <url>http://download.osgeo.org/webdav/geotools/</url>
-      <releases>
-        <updatePolicy>never</updatePolicy>
-      </releases>
-      <snapshots>
-        <enabled>true</enabled>
-      </snapshots>
-    </repository>    
-  </repositories>
-
-  <distributionManagement>
-    <repository>
-      <id>idgis-releases</id>
-      <url>https://jenkins.occamlabs.de/nexus/content/repositories/idgis-releases/</url>
-    </repository>
-    <snapshotRepository>
-      <id>idgis-snapshots</id>
-      <url>https://jenkins.occamlabs.de/nexus/content/repositories/idgis-snapshots/</url>
-    </snapshotRepository>
-  </distributionManagement>
-
   <build>
     <plugins>
       <plugin>
@@ -79,28 +40,21 @@
         <groupId>org.deegree</groupId>
         <artifactId>deegree-tilestore-commons</artifactId>
         <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.geotools</groupId>
-        <artifactId>gt-imageio-ext-gdal</artifactId>
-        <version>9.5</version>
-      </dependency>
+      </dependency>      
     </dependencies>
   </dependencyManagement>
 
   <dependencies>
+  	<dependency>
+  		<groupId>gdal</groupId>
+  		<artifactId>gdal</artifactId>
+  		<version>1.10.0</version>
+  		<systemPath>C:\Program Files\GDAL\java\gdal.jar</systemPath>
+  		<scope>system</scope>
+  	</dependency>
     <dependency>
       <groupId>org.deegree</groupId>
       <artifactId>deegree-tilestore-commons</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.geotools</groupId>
-      <artifactId>gt-imageio-ext-gdal</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>it.geosolutions.imageio-ext</groupId>
-      <artifactId>imageio-ext-gdal-bindings</artifactId>
-      <version>1.10.1</version>
     </dependency>    
   </dependencies>
 </project>
