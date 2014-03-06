@@ -9,7 +9,7 @@
   <parent>
     <groupId>org.deegree</groupId>
     <artifactId>deegree-datastores</artifactId>
-    <version>3.4-pre10-SNAPSHOT-rk5-idgis</version>
+    <version>3.4-pre10-SNAPSHOT-rk6</version>
   </parent>
 
   <repositories>
