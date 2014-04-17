@@ -46,11 +46,12 @@ import org.deegree.commons.utils.CollectionUtils.Mapper;
  */
 public class LayerRef {
 
-    private String name;
+    private final String name;
 
-    private Layer layer;
+    private final Layer layer;
 
     public LayerRef( String name ) {
+        this.layer = null;
         this.name = name;
     }
 

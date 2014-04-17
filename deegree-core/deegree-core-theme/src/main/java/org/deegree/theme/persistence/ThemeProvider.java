@@ -40,7 +40,7 @@
  ----------------------------------------------------------------------------*/
 package org.deegree.theme.persistence;
 
-import org.deegree.theme.Theme;
+import org.deegree.theme.RootTheme;
 import org.deegree.workspace.standard.AbstractResourceProvider;
 
 /**
@@ -50,7 +50,7 @@ import org.deegree.workspace.standard.AbstractResourceProvider;
  *
  * @since 3.4
  */
-public abstract class ThemeProvider extends AbstractResourceProvider<Theme> {
+public abstract class ThemeProvider extends AbstractResourceProvider<RootTheme> {
 
     // specialized type parameter
 

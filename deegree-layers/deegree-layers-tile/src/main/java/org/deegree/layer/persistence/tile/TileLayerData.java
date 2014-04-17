@@ -42,8 +42,7 @@ package org.deegree.layer.persistence.tile;
 
 import java.util.Iterator;
 
-import org.deegree.feature.FeatureCollection;
-import org.deegree.layer.LayerData;
+import org.deegree.layer.StandardLayerData;
 import org.deegree.rendering.r2d.TileRenderer;
 import org.deegree.rendering.r2d.context.RenderContext;
 import org.deegree.tile.Tile;
@@ -57,7 +56,7 @@ import org.deegree.tile.Tile;
  * @version $Revision: 31882 $, $Date: 2011-09-15 02:05:04 +0200 (Thu, 15 Sep 2011) $
  */
 
-public class TileLayerData implements LayerData {
+public class TileLayerData extends StandardLayerData {
 
     private final Iterator<Tile> tiles;
 
@@ -72,10 +71,4 @@ public class TileLayerData implements LayerData {
             renderer.render( tiles.next() );
         }
     }
-
-    @Override
-    public FeatureCollection info() {
-        return null;
-    }
-
 }

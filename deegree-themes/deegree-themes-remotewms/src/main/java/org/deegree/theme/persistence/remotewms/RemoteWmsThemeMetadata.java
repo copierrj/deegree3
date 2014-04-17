@@ -33,7 +33,7 @@ import org.deegree.layer.persistence.LayerStore;
 import org.deegree.layer.persistence.LayerStoreProvider;
 import org.deegree.remoteows.RemoteOWS;
 import org.deegree.remoteows.RemoteOWSProvider;
-import org.deegree.theme.Theme;
+import org.deegree.theme.RootTheme;
 import org.deegree.theme.persistence.remotewms.jaxb.RemoteWMSThemes;
 import org.deegree.workspace.ResourceBuilder;
 import org.deegree.workspace.ResourceInitException;
@@ -50,15 +50,15 @@ import org.deegree.workspace.standard.DefaultResourceIdentifier;
  * 
  * @since 3.4
  */
-public class RemoteWmsThemeMetadata extends AbstractResourceMetadata<Theme> {
+public class RemoteWmsThemeMetadata extends AbstractResourceMetadata<RootTheme> {
 
-    public RemoteWmsThemeMetadata( Workspace workspace, ResourceLocation<Theme> location,
-                                   AbstractResourceProvider<Theme> provider ) {
+    public RemoteWmsThemeMetadata( Workspace workspace, ResourceLocation<RootTheme> location,
+                                   AbstractResourceProvider<RootTheme> provider ) {
         super( workspace, location, provider );
     }
 
     @Override
-    public ResourceBuilder<Theme> prepare() {
+    public ResourceBuilder<RootTheme> prepare() {
         try {
             RemoteWMSThemes cfg = (RemoteWMSThemes) unmarshall( "org.deegree.theme.persistence.remotewms.jaxb",
                                                                 provider.getSchema(), location.getAsStream(), workspace );

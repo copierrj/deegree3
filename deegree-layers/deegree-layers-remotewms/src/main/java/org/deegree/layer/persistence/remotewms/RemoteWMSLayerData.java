@@ -43,6 +43,7 @@ import java.util.Map;
 import org.deegree.commons.utils.Pair;
 import org.deegree.feature.FeatureCollection;
 import org.deegree.feature.GenericFeatureCollection;
+import org.deegree.featureinfo.context.InfoContext;
 import org.deegree.layer.LayerData;
 import org.deegree.protocol.wms.client.WMSClient;
 import org.deegree.protocol.wms.ops.GetFeatureInfo;
@@ -96,15 +97,12 @@ public class RemoteWMSLayerData implements LayerData {
     }
 
     @Override
-    public FeatureCollection info() {
+    public void info( InfoContext context ) {
         try {
-            FeatureCollection col = client.doGetFeatureInfo( gfi, extraParams );
-            return col;
+            context.addFeatures( client.doGetFeatureInfo( gfi, extraParams ) );
         } catch ( Exception e ) {
             LOG.warn( "Error when retrieving remote feature info: {}", e.getLocalizedMessage() );
             LOG.trace( "Stack trace:", e );
         }
-        return new GenericFeatureCollection();
     }
-
 }

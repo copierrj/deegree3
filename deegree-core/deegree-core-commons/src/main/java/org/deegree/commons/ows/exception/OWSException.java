@@ -50,7 +50,7 @@ import org.deegree.commons.utils.kvp.MissingParameterException;
  * 
  * @version $Revision$, $Date$
  */
-public class OWSException extends Exception {
+public class OWSException extends RuntimeException {
 
     /** */
     private static final long serialVersionUID = 4274635657976045225L;

@@ -31,7 +31,7 @@ import static org.deegree.commons.xml.jaxb.JAXBUtils.unmarshall;
 
 import org.deegree.layer.persistence.LayerStore;
 import org.deegree.layer.persistence.LayerStoreProvider;
-import org.deegree.theme.Theme;
+import org.deegree.theme.RootTheme;
 import org.deegree.theme.persistence.standard.jaxb.Themes;
 import org.deegree.workspace.ResourceBuilder;
 import org.deegree.workspace.ResourceInitException;
@@ -48,15 +48,15 @@ import org.deegree.workspace.standard.DefaultResourceIdentifier;
  * 
  * @since 3.4
  */
-public class StandardThemeMetadata extends AbstractResourceMetadata<Theme> {
+public class StandardThemeMetadata extends AbstractResourceMetadata<RootTheme> {
 
-    public StandardThemeMetadata( Workspace workspace, ResourceLocation<Theme> location,
-                                  AbstractResourceProvider<Theme> provider ) {
+    public StandardThemeMetadata( Workspace workspace, ResourceLocation<RootTheme> location,
+                                  AbstractResourceProvider<RootTheme> provider ) {
         super( workspace, location, provider );
     }
 
     @Override
-    public ResourceBuilder<Theme> prepare() {
+    public ResourceBuilder<RootTheme> prepare() {
         String pkg = "org.deegree.theme.persistence.standard.jaxb";
         try {
             Themes cfg;

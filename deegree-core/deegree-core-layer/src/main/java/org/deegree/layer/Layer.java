@@ -36,8 +36,6 @@
 
 package org.deegree.layer;
 
-import java.util.List;
-
 import org.deegree.commons.ows.exception.OWSException;
 import org.deegree.layer.metadata.LayerMetadata;
 import org.deegree.style.StyleRef;
@@ -65,19 +63,7 @@ public interface Layer {
      * @return a layer data corresponding to the query, never null
      * @throws OWSException
      */
-    LayerData mapQuery( LayerQuery query, List<String> headers )
-                            throws OWSException;
-
-    /**
-     * @param query
-     *            may not be null
-     * @param headers
-     *            may not be null. Extra HTTP headers will be added, as required by the WMS spec.
-     * @return a layer data corresponding to the query, never null
-     * @throws OWSException
-     */
-    LayerData infoQuery( LayerQuery query, List<String> headers )
-                            throws OWSException;
+    LayerData query( LayerQuery query );
 
     /**
      * Should be called by layer stores upon workspace destruction.

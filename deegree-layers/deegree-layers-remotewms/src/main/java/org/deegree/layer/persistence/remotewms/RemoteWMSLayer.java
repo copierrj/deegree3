@@ -14,6 +14,7 @@ import java.util.Map;
 import org.deegree.cs.coordinatesystems.ICRS;
 import org.deegree.cs.persistence.CRSManager;
 import org.deegree.layer.AbstractLayer;
+import org.deegree.layer.LayerInfoQuery;
 import org.deegree.layer.LayerQuery;
 import org.deegree.layer.metadata.LayerMetadata;
 import org.deegree.layer.persistence.remotewms.jaxb.ParameterScopeType;
@@ -131,7 +132,7 @@ class RemoteWMSLayer extends AbstractLayer {
     }
 
     @Override
-    public RemoteWMSLayerData mapQuery( LayerQuery query, List<String> headers ) {        
+    public RemoteWMSLayerData mapQuery( LayerQuery query ) {        
         Map<String, String> extraParams = new HashMap<String, String>();
         replaceParameters( extraParams, query.getParameters(), defaultParametersGetMap, hardParametersGetMap );
         ICRS crs = this.crs;
@@ -148,7 +149,7 @@ class RemoteWMSLayer extends AbstractLayer {
     }
 
     @Override
-    public RemoteWMSLayerData infoQuery( LayerQuery query, List<String> headers ) {
+    public RemoteWMSLayerData infoQuery( LayerInfoQuery query ) {
         Map<String, String> extraParams = new HashMap<String, String>();
         replaceParameters( extraParams, query.getParameters(), defaultParametersGetFeatureInfo,
                            hardParametersGetFeatureInfo );

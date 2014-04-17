@@ -50,6 +50,7 @@ import java.util.Set;
 
 import javax.xml.namespace.QName;
 
+import org.deegree.commons.context.StandardContext;
 import org.deegree.commons.ows.exception.OWSException;
 import org.deegree.feature.persistence.FeatureStore;
 import org.deegree.feature.persistence.query.Query;
@@ -60,7 +61,9 @@ import org.deegree.filter.OperatorFilter;
 import org.deegree.filter.expression.ValueReference;
 import org.deegree.filter.sort.SortProperty;
 import org.deegree.geometry.Envelope;
+import org.deegree.geometry.GeometryFactory;
 import org.deegree.layer.AbstractLayer;
+import org.deegree.layer.LayerInfoQuery;
 import org.deegree.layer.LayerQuery;
 import org.deegree.layer.metadata.LayerMetadata;
 import org.deegree.style.StyleRef;
@@ -69,10 +72,10 @@ import org.deegree.style.utils.Styles;
 import org.slf4j.Logger;
 
 /**
- *
+ * 
  * @author <a href="mailto:schmitz@lat-lon.de">Andreas Schmitz</a>
  * @author last edited by: $Author: stranger $
- *
+ * 
  * @version $Revision: $, $Date: $
  */
 public class FeatureLayer extends AbstractLayer {
@@ -105,8 +108,7 @@ public class FeatureLayer extends AbstractLayer {
     }
 
     @Override
-    public FeatureLayerData mapQuery( final LayerQuery query, List<String> headers )
-                            throws OWSException {
+    public FeatureLayerData mapQuery( final LayerQuery query ) {
         Style style = resolveStyleRef( query.getStyle() );
         if ( style == null ) {
             throw new OWSException( "The style " + query.getStyle().getName() + " is not defined for layer "
@@ -114,9 +116,10 @@ public class FeatureLayer extends AbstractLayer {
         }
         style = style.filter( query.getScale() );
 
-        OperatorFilter filter = buildFilterForMap( this.filter, style, query, dimFilterBuilder, headers );
+        StandardContext context = new StandardContext();
+        OperatorFilter filter = buildFilterForMap( this.filter, style, query, dimFilterBuilder, context );
 
-        final Envelope bbox = query.getQueryBox();
+        final Envelope bbox = query.getEnvelope();
 
         Set<Expression> exprs = new HashSet<Expression>( Styles.getGeometryExpressions( style ) );
 
@@ -148,14 +151,14 @@ public class FeatureLayer extends AbstractLayer {
         Integer maxFeats = query.getRenderingOptions().getMaxFeatures( getMetadata().getName() );
         final int maxFeatures = maxFeats == null ? -1 : maxFeats;
 
-        return new FeatureLayerData( queries, featureStore, maxFeatures, style, ftName );
+        return new FeatureLayerData( queries, featureStore, maxFeatures, style, ftName, context.getHeaders() );
     }
 
     @Override
-    public FeatureLayerData infoQuery( final LayerQuery query, List<String> headers )
-                            throws OWSException {
+    public FeatureLayerData infoQuery( final LayerInfoQuery query ) {
         OperatorFilter filter = this.filter;
-        filter = Filters.and( filter, dimFilterBuilder.getDimensionFilter( query.getDimensions(), headers ) );
+        StandardContext context = new StandardContext();
+        filter = Filters.and( filter, dimFilterBuilder.getDimensionFilter( query.getDimensions(), context ) );
         StyleRef ref = query.getStyle();
         if ( !ref.isResolved() ) {
             ref.resolve( getMetadata().getStyles().get( ref.getName() ) );
@@ -165,7 +168,7 @@ public class FeatureLayer extends AbstractLayer {
         filter = Filters.and( filter, getStyleFilters( style, query.getScale() ) );
         filter = Filters.and( filter, query.getFilter() );
 
-        final Envelope clickBox = query.calcClickBox( query.getLayerRadius() );
+        final Envelope clickBox = query.getClickBox();
 
         filter = (OperatorFilter) Filters.addBBoxConstraint( clickBox, filter, null );
 
@@ -181,7 +184,7 @@ public class FeatureLayer extends AbstractLayer {
 
         LOG.debug( "Finished querying the feature store(s)." );
 
-        return new FeatureLayerData( queries, featureStore, query.getFeatureCount(), style, featureType );
+        return new FeatureLayerData( queries, featureStore, query.getFeatureCount(), style, featureType, context.getHeaders() );
     }
 
 }

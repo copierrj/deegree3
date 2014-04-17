@@ -61,6 +61,7 @@ import org.deegree.filter.OperatorFilter;
 import org.deegree.filter.expression.ValueReference;
 import org.deegree.filter.sort.SortProperty;
 import org.deegree.geometry.Envelope;
+import org.deegree.layer.LayerInfoQuery;
 import org.deegree.layer.LayerQuery;
 import org.deegree.protocol.wfs.getfeature.TypeName;
 
@@ -139,7 +140,7 @@ class QueryBuilder {
                                          } else {
                                              f = buildFilter( ( (OperatorFilter) filter ).getOperator(), u, bbox );
                                          }
-                                         return createQuery( u.getName(), f, -1, query.getFeatureCount(), -1,
+                                         return createQuery( u.getName(), f, -1, ((LayerInfoQuery)query).getFeatureCount(), -1,
                                                              sortBy );
                                      }
                                  } ) );
@@ -152,7 +153,7 @@ class QueryBuilder {
                 f = buildFilter( ( (OperatorFilter) filter ).getOperator(),
                                  featureStore.getSchema().getFeatureType( ftName ), bbox );
             }
-            queries.add( createQuery( ftName, f, -1, query.getFeatureCount(), -1, sortBy ) );
+            queries.add( createQuery( ftName, f, -1, ((LayerInfoQuery)query).getFeatureCount(), -1, sortBy ) );
         }
         return queries;
     }

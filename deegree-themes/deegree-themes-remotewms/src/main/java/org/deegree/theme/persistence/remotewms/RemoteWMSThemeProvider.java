@@ -37,7 +37,7 @@ package org.deegree.theme.persistence.remotewms;
 
 import java.net.URL;
 
-import org.deegree.theme.Theme;
+import org.deegree.theme.RootTheme;
 import org.deegree.theme.persistence.ThemeProvider;
 import org.deegree.workspace.ResourceLocation;
 import org.deegree.workspace.ResourceMetadata;
@@ -60,7 +60,7 @@ public class RemoteWMSThemeProvider extends ThemeProvider {
     }
 
     @Override
-    public ResourceMetadata<Theme> createFromLocation( Workspace workspace, ResourceLocation<Theme> location ) {
+    public ResourceMetadata<RootTheme> createFromLocation( Workspace workspace, ResourceLocation<RootTheme> location ) {
         return new RemoteWmsThemeMetadata( workspace, location, this );
     }
 

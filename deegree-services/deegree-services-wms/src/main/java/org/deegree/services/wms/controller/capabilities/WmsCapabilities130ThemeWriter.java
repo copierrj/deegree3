@@ -68,7 +68,6 @@ import org.deegree.services.metadata.OWSMetadataProvider;
 import org.deegree.services.wms.controller.WMSController;
 import org.deegree.style.se.unevaluated.Style;
 import org.deegree.theme.Theme;
-import org.deegree.theme.Themes;
 
 /**
  * Responsible for writing out themes capabilities.
@@ -99,16 +98,6 @@ class WmsCapabilities130ThemeWriter {
     void writeTheme( XMLStreamWriter writer, Theme theme )
                             throws XMLStreamException {
         LayerMetadata md = theme.getLayerMetadata();
-        // TODO think about a push approach instead of a pull approach
-        LayerMetadata lmd = null;
-        for ( org.deegree.layer.Layer l : Themes.getAllLayers( theme ) ) {
-            if ( lmd == null ) {
-                lmd = l.getMetadata();
-            } else {
-                lmd.merge( l.getMetadata() );
-            }
-        }
-        md.merge( lmd );
 
         writer.writeStartElement( WMSNS, "Layer" );
 
@@ -119,7 +108,7 @@ class WmsCapabilities130ThemeWriter {
             writer.writeAttribute( "cascaded", md.getCascaded() + "" );
         }
 
-        writeThemeMetadata( writer, md, lmd );
+        writeThemeMetadata( writer, md );
 
         SpatialMetadata smd = md.getSpatialMetadata();
         writeSrsAndEnvelope( writer, smd.getCoordinateSystems(), smd.getEnvelope() );
@@ -135,28 +124,24 @@ class WmsCapabilities130ThemeWriter {
         writer.writeEndElement();
     }
 
-    private static void writeThemeMetadata( XMLStreamWriter writer, LayerMetadata md, LayerMetadata lmd )
+    private static void writeThemeMetadata( XMLStreamWriter writer, LayerMetadata md )
                             throws XMLStreamException {
         if ( md.getName() != null ) {
             writeElement( writer, WMSNS, "Name", md.getName() );
         }
         writeElement( writer, WMSNS, "Title", md.getDescription().getTitles().get( 0 ).getString() );
         List<LanguageString> abs = md.getDescription().getAbstracts();
-        if ( lmd != null && ( abs == null || abs.isEmpty() ) ) {
-            abs = lmd.getDescription().getAbstracts();
-        }
+        
         if ( abs != null && !abs.isEmpty() ) {
             writeElement( writer, WMSNS, "Abstract", abs.get( 0 ).getString() );
         }
-        writeKeywords( writer, md, lmd );
+        writeKeywords( writer, md );
     }
 
-    private static void writeKeywords( XMLStreamWriter writer, LayerMetadata md, LayerMetadata lmd )
+    private static void writeKeywords( XMLStreamWriter writer, LayerMetadata md )
                             throws XMLStreamException {
         List<Pair<List<LanguageString>, CodeType>> kwsl = md.getDescription().getKeywords();
-        if ( lmd != null && ( kwsl == null || kwsl.isEmpty() || kwsl.get( 0 ).first.isEmpty() ) ) {
-            kwsl = lmd.getDescription().getKeywords();
-        }
+        
         if ( kwsl != null && !kwsl.isEmpty() && !kwsl.get( 0 ).first.isEmpty() ) {
             writer.writeStartElement( WMSNS, "KeywordList" );
 
@@ -175,32 +160,26 @@ class WmsCapabilities130ThemeWriter {
 
     private void writeMetadataUrls( XMLStreamWriter writer, Theme theme )
                             throws XMLStreamException {
-        String id = null, name = null;
-
-        inner: for ( org.deegree.layer.Layer l : theme.getLayers() ) {
-            if ( l.getMetadata().getName() != null ) {
-                name = l.getMetadata().getName();
-            }
-            if ( l.getMetadata().getMetadataId() != null ) {
-                id = l.getMetadata().getMetadataId();
-                break inner;
-            }
-        }
-
-        writeMetadataFromProvider( writer, name );
-
-        if ( controller.getMetadataURLTemplate() != null ) {
-            String mdurlTemplate = controller.getMetadataURLTemplate();
-            if ( mdurlTemplate.isEmpty() ) {
-                mdurlTemplate = getUrl;
-                if ( !( mdurlTemplate.endsWith( "?" ) || mdurlTemplate.endsWith( "&" ) ) ) {
-                    mdurlTemplate += "?";
+        
+        LayerMetadata lm = theme.getLayerMetadata();
+        if(lm != null) {
+            String id = lm.getMetadataId(), name = lm.getName();
+    
+            writeMetadataFromProvider( writer, name );
+    
+            if ( controller.getMetadataURLTemplate() != null ) {
+                String mdurlTemplate = controller.getMetadataURLTemplate();
+                if ( mdurlTemplate.isEmpty() ) {
+                    mdurlTemplate = getUrl;
+                    if ( !( mdurlTemplate.endsWith( "?" ) || mdurlTemplate.endsWith( "&" ) ) ) {
+                        mdurlTemplate += "?";
+                    }
+                    mdurlTemplate += "service=CSW&request=GetRecordById&version=2.0.2&outputSchema=http%3A//www.isotc211.org/2005/gmd&elementSetName=full&id=${metadataSetId}";
                 }
-                mdurlTemplate += "service=CSW&request=GetRecordById&version=2.0.2&outputSchema=http%3A//www.isotc211.org/2005/gmd&elementSetName=full&id=${metadataSetId}";
-            }
-
-            if ( id != null ) {
-                writeMetadataUrl( writer, StringUtils.replaceAll( mdurlTemplate, "${metadataSetId}", id ) );
+    
+                if ( id != null ) {
+                    writeMetadataUrl( writer, StringUtils.replaceAll( mdurlTemplate, "${metadataSetId}", id ) );
+                }
             }
         }
     }
@@ -272,14 +251,7 @@ class WmsCapabilities130ThemeWriter {
     private void writeThemeScaleDenominators( LayerMetadata md, Theme theme, XMLStreamWriter writer )
                             throws XMLStreamException {
         DoublePair hint = md.getScaleDenominators();
-        // use layers' settings only if not set for theme
-        if ( hint.first.isInfinite() && hint.second.isInfinite() ) {
-            hint = new DoublePair( hint.second, hint.first );
-            for ( org.deegree.layer.Layer l : theme.getLayers() ) {
-                hint.first = Math.min( l.getMetadata().getScaleDenominators().first, hint.first );
-                hint.second = Math.max( l.getMetadata().getScaleDenominators().second, hint.second );
-            }
-        }
+        
         if ( !hint.first.isInfinite() ) {
             writeElement( writer, WMSNS, "MinScaleDenominator", hint.first + "" );
         }

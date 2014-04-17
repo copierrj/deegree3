@@ -51,12 +51,10 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
 import org.deegree.featureinfo.FeatureInfoManager;
-import org.deegree.layer.Layer;
 import org.deegree.layer.metadata.LayerMetadata;
 import org.deegree.layer.persistence.tile.TileLayer;
 import org.deegree.services.ows.capabilities.OWSCapabilitiesXMLAdapter;
 import org.deegree.theme.Theme;
-import org.deegree.theme.Themes;
 import org.deegree.tile.TileDataSet;
 import org.deegree.tile.TileMatrixSet;
 
@@ -84,11 +82,9 @@ public class WmtsLayerWriter extends OWSCapabilitiesXMLAdapter {
 
     void writeLayers( List<Theme> themes, Set<TileMatrixSet> matrixSets )
                             throws XMLStreamException {
-        for ( Theme t : themes ) {
-            for ( Layer l : Themes.getAllLayers( t ) ) {
-                if ( l instanceof TileLayer ) {
-                    exportLayer( matrixSets, (TileLayer) l );
-                }
+        for ( Theme theme : themes ) {
+            for ( TileLayer tileLayer : theme.getLayers( TileLayer.class )) {
+                exportLayer( matrixSets, tileLayer );
             }
         }
     }

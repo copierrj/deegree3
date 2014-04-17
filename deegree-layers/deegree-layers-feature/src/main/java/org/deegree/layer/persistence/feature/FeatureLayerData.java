@@ -44,15 +44,13 @@ import java.util.Set;
 
 import javax.xml.namespace.QName;
 
-import org.deegree.feature.Feature;
-import org.deegree.feature.FeatureCollection;
-import org.deegree.feature.GenericFeatureCollection;
 import org.deegree.feature.persistence.FeatureStore;
 import org.deegree.feature.persistence.query.Query;
 import org.deegree.feature.stream.FeatureInputStream;
 import org.deegree.feature.stream.ThreadedFeatureInputStream;
 import org.deegree.feature.types.AppSchemas;
 import org.deegree.feature.xpath.TypedObjectNodeXPathEvaluator;
+import org.deegree.featureinfo.context.InfoContext;
 import org.deegree.filter.FilterEvaluationException;
 import org.deegree.filter.XPathEvaluator;
 import org.deegree.layer.LayerData;
@@ -80,8 +78,10 @@ public class FeatureLayerData implements LayerData {
     private final List<Query> queries;
 
     private final FeatureStore featureStore;
+    
+    private final List<String> headers;
 
-    public FeatureLayerData( List<Query> queries, FeatureStore featureStore, int maxFeatures, Style style, QName ftName ) {
+    public FeatureLayerData( List<Query> queries, FeatureStore featureStore, int maxFeatures, Style style, QName ftName, List<String> headers ) {
         this.queries = queries;
         this.featureStore = featureStore;
         this.maxFeatures = maxFeatures;
@@ -92,6 +92,7 @@ public class FeatureLayerData implements LayerData {
             bindings.put( name.getLocalPart(), name );
         }
         evaluator = new TypedObjectNodeXPathEvaluator( bindings );
+        this.headers = headers;
     }
 
     @Override
@@ -104,6 +105,8 @@ public class FeatureLayerData implements LayerData {
 
             FeatureStreamRenderer renderer = new FeatureStreamRenderer( context, maxFeatures, evaluator );
             renderer.renderFeatureStream( features, style );
+            
+            context.addHeaders( headers );
         } catch ( FilterEvaluationException e ) {
             LOG.warn( "A filter could not be evaluated. The error was '{}'.", e.getLocalizedMessage() );
             LOG.trace( "Stack trace:", e );
@@ -115,33 +118,16 @@ public class FeatureLayerData implements LayerData {
                 features.close();
             }
         }
-    }
-
-    private static FeatureCollection clearDuplicates( FeatureInputStream rs ) {
-        FeatureCollection col = null;
-        try {
-            col = new GenericFeatureCollection();
-            for ( Feature f : rs ) {
-                if ( !col.contains( f ) ) {
-                    col.add( f );
-                }
-            }
-        } finally {
-            rs.close();
-        }
-        return col;
-    }
+    }    
 
     @Override
-    public FeatureCollection info() {
-        FeatureCollection col = null;
+    public void info( InfoContext context ) {        
         try {
-            col = clearDuplicates( featureStore.query( queries.toArray( new Query[queries.size()] ) ) );
+            context.addFeatures( featureStore.query( queries.toArray( new Query[queries.size()] ) ) );
+            context.addHeaders( headers );
         } catch ( Throwable e ) {
             LOG.warn( "Data could not be fetched from the feature store. The error was '{}'.", e.getLocalizedMessage() );
             LOG.trace( "Stack trace:", e );
         }
-        return col;
     }
-
 }

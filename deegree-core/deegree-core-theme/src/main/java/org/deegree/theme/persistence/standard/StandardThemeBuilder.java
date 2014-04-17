@@ -42,7 +42,6 @@
 package org.deegree.theme.persistence.standard;
 
 import static java.util.Collections.singletonList;
-import static org.deegree.theme.Themes.aggregateSpatialMetadata;
 import static org.slf4j.LoggerFactory.getLogger;
 
 import java.util.ArrayList;
@@ -65,7 +64,7 @@ import org.deegree.layer.metadata.LayerMetadata;
 import org.deegree.layer.persistence.LayerStore;
 import org.deegree.layer.persistence.LayerStoreProvider;
 import org.deegree.style.se.unevaluated.Style;
-import org.deegree.theme.Theme;
+import org.deegree.theme.RootTheme;
 import org.deegree.theme.persistence.standard.jaxb.ThemeType;
 import org.deegree.theme.persistence.standard.jaxb.Themes;
 import org.deegree.workspace.ResourceBuilder;
@@ -82,17 +81,17 @@ import org.slf4j.Logger;
  * 
  * @version $Revision: $, $Date: $
  */
-public class StandardThemeBuilder implements ResourceBuilder<Theme> {
+public class StandardThemeBuilder implements ResourceBuilder<RootTheme> {
 
     private static final Logger LOG = getLogger( StandardThemeBuilder.class );
 
     private Themes config;
 
-    private ResourceMetadata<Theme> metadata;
+    private ResourceMetadata<RootTheme> metadata;
 
     private Workspace workspace;
 
-    public StandardThemeBuilder( Themes config, ResourceMetadata<Theme> metadata, Workspace workspace ) {
+    public StandardThemeBuilder( Themes config, ResourceMetadata<RootTheme> metadata, Workspace workspace ) {
         this.config = config;
         this.metadata = metadata;
         this.workspace = workspace;
@@ -124,9 +123,16 @@ public class StandardThemeBuilder implements ResourceBuilder<Theme> {
         return lay;
     }
 
-    private StandardTheme buildTheme( ThemeType current, List<ThemeType.Layer> layers, List<ThemeType> themes,
-                                      Map<String, LayerStore> stores ) {
-        List<Layer> lays = new ArrayList<Layer>( layers.size() );
+    private interface ThemeBuilder {
+
+        StandardTheme buildTheme();
+
+        StandardRootTheme buildRootTheme();
+    }
+
+    private ThemeBuilder buildTheme( ThemeType current, List<ThemeType.Layer> layers, List<ThemeType> themes,
+                                     Map<String, LayerStore> stores ) {
+        final List<Layer> lays = new ArrayList<Layer>( layers.size() );
 
         LinkedHashMap<String, Dimension<?>> dims = new LinkedHashMap<String, Dimension<?>>();
         LinkedHashMap<String, Style> styles = new LinkedHashMap<String, Style>();
@@ -145,9 +151,9 @@ public class StandardThemeBuilder implements ResourceBuilder<Theme> {
                 lays.add( lay );
             }
         }
-        List<Theme> thms = new ArrayList<Theme>( themes.size() );
+        final List<StandardTheme> thms = new ArrayList<StandardTheme>( themes.size() );
         for ( ThemeType tt : themes ) {
-            StandardTheme thm = buildTheme( tt, tt.getLayer(), tt.getTheme(), stores );
+            StandardTheme thm = buildTheme( tt, tt.getLayer(), tt.getTheme(), stores ).buildTheme();
             if ( thm != null ) {
                 thms.add( thm );
             }
@@ -163,50 +169,62 @@ public class StandardThemeBuilder implements ResourceBuilder<Theme> {
         Description desc = DescriptionConverter.fromJaxb( current.getTitle(), current.getAbstract(),
                                                           current.getKeywords() );
 
-        LayerMetadata md = new LayerMetadata( current.getIdentifier(), desc, smd );
+        final LayerMetadata md = new LayerMetadata( current.getIdentifier(), desc, smd );
         md.setDimensions( dims );
         md.setStyles( styles );
         md.setLegendStyles( legendStyles );
-        return new StandardTheme( md, thms, lays, metadata );
+
+        return new ThemeBuilder() {
+
+            @Override
+            public StandardTheme buildTheme() {
+                return new StandardTheme( md, thms, lays );
+            }
+
+            @Override
+            public StandardRootTheme buildRootTheme() {
+                return new StandardRootTheme( md, thms, lays, metadata );
+            }
+        };
     }
 
-    private Theme buildAutoTheme( Layer layer ) {
+    private StandardTheme buildAutoTheme( Layer layer ) {
         LayerMetadata md = new LayerMetadata( null, null, null );
         LayerMetadata lmd = layer.getMetadata();
         md.merge( lmd );
         md.setDimensions( new LinkedHashMap<String, Dimension<?>>( lmd.getDimensions() ) );
         md.setStyles( new LinkedHashMap<String, Style>( lmd.getStyles() ) );
         md.setLegendStyles( new LinkedHashMap<String, Style>( lmd.getLegendStyles() ) );
-        return new StandardTheme( md, Collections.<Theme> emptyList(), singletonList( layer ), metadata );
+        return new StandardTheme( md, Collections.<StandardTheme> emptyList(), singletonList( layer ) );
     }
 
-    private Theme buildAutoTheme( String id, LayerStore store ) {
+    private StandardTheme buildAutoTheme( String id, LayerStore store ) {
         Description desc = new Description( id, singletonList( new LanguageString( id, null ) ), null, null );
         LayerMetadata md = new LayerMetadata( null, desc, new SpatialMetadata( null, Collections.<ICRS> emptyList() ) );
-        List<Theme> themes = new ArrayList<Theme>();
+        List<StandardTheme> themes = new ArrayList<StandardTheme>();
 
         for ( Layer l : store.getAll() ) {
             themes.add( buildAutoTheme( l ) );
         }
 
-        return new StandardTheme( md, themes, new ArrayList<Layer>(), metadata );
+        return new StandardTheme( md, themes, new ArrayList<Layer>() );
     }
 
-    private Theme buildAutoTheme( Map<String, LayerStore> stores ) {
+    private RootTheme buildAutoTheme( Map<String, LayerStore> stores ) {
         Description desc = new Description( null, Collections.singletonList( new LanguageString( "root", null ) ),
                                             null, null );
         LayerMetadata md = new LayerMetadata( null, desc, new SpatialMetadata( null, Collections.<ICRS> emptyList() ) );
-        List<Theme> themes = new ArrayList<Theme>();
+        List<StandardTheme> themes = new ArrayList<StandardTheme>();
 
         for ( Entry<String, LayerStore> e : stores.entrySet() ) {
             themes.add( buildAutoTheme( e.getKey(), e.getValue() ) );
         }
 
-        return new StandardTheme( md, themes, new ArrayList<Layer>(), metadata );
+        return new StandardRootTheme( md, themes, new ArrayList<Layer>(), metadata );
     }
 
     @Override
-    public Theme build() {
+    public RootTheme build() {
         List<String> storeIds = config.getLayerStoreId();
         Map<String, LayerStore> stores = new LinkedHashMap<String, LayerStore>( storeIds.size() );
 
@@ -220,17 +238,16 @@ public class StandardThemeBuilder implements ResourceBuilder<Theme> {
         }
 
         ThemeType root = config.getTheme();
-        Theme theme;
+        final RootTheme theme;
         if ( root == null ) {
             theme = buildAutoTheme( stores );
         } else {
-            theme = buildTheme( root, root.getLayer(), root.getTheme(), stores );
+            theme = buildTheme( root, root.getLayer(), root.getTheme(), stores ).buildRootTheme();
         }
         if ( theme == null ) {
             throw new ResourceInitException( "Root theme contains no layers and no themes." );
         }
-        aggregateSpatialMetadata( theme );
+
         return theme;
     }
-
 }

@@ -40,7 +40,9 @@ import static org.deegree.coverage.rangeset.RangeSetBuilder.createBandRangeSetFr
 import static org.slf4j.LoggerFactory.getLogger;
 
 import java.util.LinkedList;
+import java.util.List;
 
+import org.deegree.commons.context.Context;
 import org.deegree.commons.utils.Triple;
 import org.deegree.coverage.filter.raster.RasterFilter;
 import org.deegree.coverage.rangeset.RangeSet;
@@ -48,8 +50,8 @@ import org.deegree.coverage.raster.AbstractRaster;
 import org.deegree.coverage.raster.geom.Grid;
 import org.deegree.coverage.raster.interpolation.InterpolationType;
 import org.deegree.coverage.raster.utils.CoverageTransform;
-import org.deegree.feature.FeatureCollection;
 import org.deegree.feature.types.FeatureType;
+import org.deegree.featureinfo.context.InfoContext;
 import org.deegree.geometry.Envelope;
 import org.deegree.geometry.Geometry;
 import org.deegree.layer.LayerData;
@@ -87,8 +89,10 @@ public class CoverageLayerData implements LayerData {
 
     private final FeatureType featureType;
 
+    private final List<String> headers;
+
     public CoverageLayerData( AbstractRaster raster, Envelope bbox, int width, int height, InterpolationType interpol,
-                              RangeSet filter, Style style, FeatureType featureType ) {
+                              RangeSet filter, Style style, FeatureType featureType, List<String> headers ) {
         this.raster = raster;
         this.bbox = bbox;
         this.width = width;
@@ -97,6 +101,13 @@ public class CoverageLayerData implements LayerData {
         this.filter = filter;
         this.style = style;
         this.featureType = featureType;
+        this.headers = headers;
+    }
+
+    private void addHeaders( Context context ) {
+        for ( final String header : headers ) {
+            context.addHeader( header );
+        }
     }
 
     @Override
@@ -122,6 +133,8 @@ public class CoverageLayerData implements LayerData {
             } else {
                 renderer.render( null, raster );
             }
+
+            addHeaders( context );
         } catch ( Throwable e ) {
             LOG.trace( "Stack trace:", e );
             LOG.error( "Unable to render raster: {}", e.getLocalizedMessage() );
@@ -129,9 +142,10 @@ public class CoverageLayerData implements LayerData {
     }
 
     @Override
-    public FeatureCollection info() {
+    public void info( InfoContext context ) {
         CoverageFeatureInfoHandler handler = new CoverageFeatureInfoHandler( raster, bbox, featureType, interpol );
-        return handler.handleFeatureInfo();
+        context.addFeatures( handler.handleFeatureInfo() );
+        addHeaders( context );
     }
 
 }

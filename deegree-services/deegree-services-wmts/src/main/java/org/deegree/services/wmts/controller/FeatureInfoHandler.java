@@ -47,13 +47,11 @@ import javax.xml.stream.XMLStreamException;
 
 import org.deegree.commons.ows.exception.OWSException;
 import org.deegree.featureinfo.FeatureInfoManager;
-import org.deegree.layer.Layer;
 import org.deegree.layer.persistence.tile.TileLayer;
 import org.deegree.protocol.wmts.ops.GetFeatureInfo;
 import org.deegree.services.controller.utils.HttpResponseBuffer;
 import org.deegree.services.wmts.jaxb.FeatureInfoFormatsType;
 import org.deegree.theme.Theme;
-import org.deegree.theme.Themes;
 import org.deegree.workspace.ResourceInitException;
 import org.deegree.workspace.ResourceLocation;
 import org.deegree.workspace.Workspace;
@@ -79,10 +77,8 @@ class FeatureInfoHandler {
 
         layers = new HashMap<String, TileLayer>();
         for ( Theme theme : themes ) {
-            for ( Layer l : Themes.getAllLayers( theme ) ) {
-                if ( l instanceof TileLayer ) {
-                    layers.put( l.getMetadata().getName(), ( (TileLayer) l ) );
-                }
+            for ( TileLayer tileLayer : theme.getLayers( TileLayer.class ) ) {
+                layers.put( tileLayer.getMetadata().getName(), tileLayer );
             }
         }
     }

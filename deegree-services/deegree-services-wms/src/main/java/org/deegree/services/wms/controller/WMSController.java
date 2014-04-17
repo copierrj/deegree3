@@ -88,6 +88,7 @@ import org.deegree.feature.FeatureCollection;
 import org.deegree.feature.types.FeatureType;
 import org.deegree.featureinfo.FeatureInfoManager;
 import org.deegree.featureinfo.FeatureInfoParams;
+import org.deegree.featureinfo.context.StandardInfoContext;
 import org.deegree.featureinfo.serializing.FeatureInfoSerializer;
 import org.deegree.gml.GMLVersion;
 import org.deegree.gml.schema.GMLAppSchemaWriter;
@@ -96,10 +97,11 @@ import org.deegree.protocol.ows.getcapabilities.GetCapabilities;
 import org.deegree.protocol.wms.WMSConstants.WMSRequestType;
 import org.deegree.protocol.wms.WMSException.InvalidDimensionValue;
 import org.deegree.protocol.wms.WMSException.MissingDimensionValue;
+import org.deegree.protocol.wms.ops.GetFeatureInfo;
 import org.deegree.protocol.wms.ops.GetFeatureInfoSchema;
 import org.deegree.protocol.wms.ops.GetLegendGraphic;
+import org.deegree.protocol.wms.ops.GetMap;
 import org.deegree.rendering.r2d.context.DefaultRenderContext;
-import org.deegree.rendering.r2d.context.RenderContext;
 import org.deegree.rendering.r2d.context.RenderingInfo;
 import org.deegree.services.OWS;
 import org.deegree.services.OWSProvider;
@@ -260,7 +262,7 @@ public class WMSController extends AbstractOWS {
                         throw new IllegalArgumentException( "Unknown GetFeatureInfoFormat" );
                     }
                 }
-            }            
+            }
 
             // if ( pi.getImageFormat() != null ) {
             // for ( ImageFormat f : pi.getImageFormat() ) {
@@ -430,6 +432,12 @@ public class WMSController extends AbstractOWS {
         sendImage( img, response, glg.getFormat() );
     }
 
+    private static void addHeaders( final HttpResponseBuffer response, final List<String> headers ) {
+        for ( final String header : headers ) {
+            response.addHeader( "Warning", header );
+        }
+    }
+
     private void getFeatureInfo( Map<String, String> map, final HttpResponseBuffer response, Version version )
                             throws OWSException, IOException, MissingDimensionValue, InvalidDimensionValue {
 
@@ -441,25 +449,26 @@ public class WMSController extends AbstractOWS {
         ICRS crs;
         Map<String, String> nsBindings = new HashMap<String, String>();
 
-        LinkedList<String> headers = new LinkedList<String>();
-        org.deegree.protocol.wms.ops.GetFeatureInfo fi = new org.deegree.protocol.wms.ops.GetFeatureInfo( map, version );
-        checkGetFeatureInfo( version, fi );
-        crs = fi.getCoordinateSystem();
-        geometries = fi.returnGeometries();
-        queryLayers = map( fi.getQueryLayers(), CollectionUtils.<LayerRef> getToStringMapper() );
+        GetFeatureInfo getFeatureInfo = new GetFeatureInfo( map, version );
+        checkGetFeatureInfo( version, getFeatureInfo );
+        crs = getFeatureInfo.getCoordinateSystem();
+        geometries = getFeatureInfo.returnGeometries();
+        queryLayers = map( getFeatureInfo.getQueryLayers(), CollectionUtils.<LayerRef> getToStringMapper() );
 
-        RenderingInfo info = new RenderingInfo( fi.getInfoFormat(), fi.getWidth(), fi.getHeight(), false, null,
-                                                fi.getEnvelope(), 0.28, map );
-        format = fi.getInfoFormat();
+        RenderingInfo info = new RenderingInfo( getFeatureInfo.getInfoFormat(), getFeatureInfo.getWidth(),
+                                                getFeatureInfo.getHeight(), false, null, getFeatureInfo.getEnvelope(),
+                                                0.28, map );
+        format = getFeatureInfo.getInfoFormat();
         info.setFormat( format );
-        info.setFeatureCount( fi.getFeatureCount() );
-        info.setX( fi.getX() );
-        info.setY( fi.getY() );
-        pair = new Pair<FeatureCollection, LinkedList<String>>( service.getFeatures( fi, headers ), headers );
+        info.setFeatureCount( getFeatureInfo.getFeatureCount() );
+        info.setX( getFeatureInfo.getX() );
+        info.setY( getFeatureInfo.getY() );
 
-        FeatureCollection col = pair.first;
-        addHeaders( response, pair.second );
-        format = format == null ? "application/vnd.ogc.gml" : format;
+        StandardInfoContext context = new StandardInfoContext();
+        service.getFeatures( getFeatureInfo, context );
+
+        addHeaders( response, context.getHeaders() );
+
         response.setContentType( format );
         response.setCharacterEncoding( "UTF-8" );
 
@@ -477,7 +486,8 @@ public class WMSController extends AbstractOWS {
         String loc = getHttpGetURL() + "request=GetFeatureInfoSchema&layers=" + join( ",", queryLayers );
 
         try {
-            FeatureInfoParams params = new FeatureInfoParams( nsBindings, col, format, geometries, loc, type, crs );
+            FeatureInfoParams params = new FeatureInfoParams( nsBindings, context.getFeatures(), format,
+                                                              geometries, loc, type, crs );
             featureInfoManager.serializeFeatureInfo( params, new StandardFeatureInfoContext( response ) );
             response.flushBuffer();
         } catch ( XMLStreamException e ) {
@@ -507,31 +517,23 @@ public class WMSController extends AbstractOWS {
         } catch ( XMLStreamException e ) {
             LOG.error( "Unknown error", e );
         }
-    }
-
-    private static void addHeaders( HttpResponseBuffer response, LinkedList<String> headers ) {
-        while ( !headers.isEmpty() ) {
-            String s = headers.poll();
-            response.addHeader( "Warning", s );
-        }
-    }
+    }   
 
     protected void getMap( Map<String, String> map, HttpResponseBuffer response, Version version )
                             throws OWSException, IOException, MissingDimensionValue, InvalidDimensionValue {
-        org.deegree.protocol.wms.ops.GetMap gm2 = new org.deegree.protocol.wms.ops.GetMap( map, version,
-                                                                                           service.getExtensions() );
+        GetMap getMap = new GetMap( map, version, service.getExtensions() );
 
-        checkGetMap( version, gm2 );
+        checkGetMap( version, getMap );
 
-        RenderingInfo info = new RenderingInfo( gm2.getFormat(), gm2.getWidth(), gm2.getHeight(), gm2.getTransparent(),
-                                                gm2.getBgColor(), gm2.getBoundingBox(), gm2.getPixelSize(), map );
-        RenderContext ctx = new DefaultRenderContext( info );
-        ctx.setOutput( response.getOutputStream() );
-        LinkedList<String> headers = new LinkedList<String>();
-        service.getMap( gm2, headers, ctx );
-        response.setContentType( gm2.getFormat() );
-        ctx.close();
-        addHeaders( response, headers );
+        RenderingInfo info = new RenderingInfo( getMap.getFormat(), getMap.getWidth(), getMap.getHeight(),
+                                                getMap.getTransparent(), getMap.getBgColor(), getMap.getBoundingBox(),
+                                                getMap.getPixelSize(), map );
+        DefaultRenderContext context = new DefaultRenderContext( info );
+        context.setOutput( response.getOutputStream() );
+        service.getMap( getMap, context );
+        response.setContentType( getMap.getFormat() );
+        addHeaders( response, context.getHeaders() );
+        context.close();
     }
 
     private void checkGetFeatureInfo( Version version, org.deegree.protocol.wms.ops.GetFeatureInfo gfi )

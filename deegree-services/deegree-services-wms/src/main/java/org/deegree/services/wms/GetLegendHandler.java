@@ -50,13 +50,17 @@ import static org.deegree.style.utils.ImageUtils.postprocessPng8bit;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.util.HashMap;
+import java.util.Map;
 
 import org.deegree.commons.utils.Pair;
 import org.deegree.layer.LayerRef;
+import org.deegree.layer.metadata.LayerMetadata;
 import org.deegree.protocol.wms.ops.GetLegendGraphic;
 import org.deegree.rendering.r2d.legends.Legends;
 import org.deegree.style.StyleRef;
 import org.deegree.style.se.unevaluated.Style;
+import org.deegree.theme.RootTheme;
+import org.deegree.theme.Theme;
 
 /**
  * Produces legends for the map service.
@@ -122,12 +126,24 @@ class GetLegendHandler {
         return res;
     }
 
-    private Style findLegendStyle( LayerRef layer, StyleRef styleRef ) {
-        Style style;
-        style = service.themeMap.get( layer.getName() ).getLayerMetadata().getLegendStyles().get( styleRef.getName() );
-        if ( style == null ) {
-            style = service.themeMap.get( layer.getName() ).getLayerMetadata().getStyles().get( styleRef.getName() );
+    private Style findLegendStyle( LayerRef layerRef, StyleRef styleRef ) {
+        final RootTheme rootTheme = service.getRootTheme();
+        
+        final String layerName = layerRef.getName();
+        final String styleName = styleRef.getName();
+
+        final Theme theme = rootTheme.getTheme( layerName );
+        final LayerMetadata layerMetadata = theme.getLayerMetadata();
+
+        final Style style;
+        final Map<String, Style> legendStyles = layerMetadata.getLegendStyles();
+        if ( legendStyles.containsKey( styleName ) ) {
+            style = legendStyles.get( styleName );
+        } else {
+            final Map<String, Style> styles = layerMetadata.getStyles();
+            style = styles.get( styleName );
         }
+
         return style;
     }
 

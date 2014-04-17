@@ -42,79 +42,86 @@ package org.deegree.theme.persistence.standard;
 
 import static org.deegree.commons.utils.StringUtils.repeat;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.deegree.layer.Layer;
 import org.deegree.layer.metadata.LayerMetadata;
 import org.deegree.theme.Theme;
-import org.deegree.workspace.Resource;
-import org.deegree.workspace.ResourceMetadata;
 
 /**
  * Standard theme implementation.
  * 
  * @author <a href="mailto:schmitz@occamlabs.de">Andreas Schmitz</a>
+ * @author <a href="mailto:reijer.copier@idgis.nl">Reijer Copier</a>
  * 
  * @since 3.4
  */
 public class StandardTheme implements Theme {
 
-    private final List<Theme> themes;
+    protected final List<StandardTheme> themes;
 
-    private final List<Layer> layers;
+    protected final List<Layer> layers;
 
-    private LayerMetadata metadata;
+    protected final LayerMetadata layerMetadata;
 
-    private ResourceMetadata<Theme> resourceMetadata;
-
-    public StandardTheme( LayerMetadata metadata, List<Theme> themes, List<Layer> layers,
-                          ResourceMetadata<Theme> resourceMetadata ) {
-        this.metadata = metadata;
+    public StandardTheme( LayerMetadata layerMetadata, List<StandardTheme> themes, List<Layer> layers ) {
+        this.layerMetadata = layerMetadata;
         this.themes = themes;
         this.layers = layers;
-        this.resourceMetadata = resourceMetadata;
-    }
-
-    @Override
-    public void init() {
-        // nothing to do
-    }
-
-    @Override
-    public void destroy() {
-        // nothing to do
     }
 
     @Override
     public LayerMetadata getLayerMetadata() {
-        return metadata;
+        LayerMetadata layerMetadata = this.layerMetadata;
+
+        for ( final Layer layer : layers ) {
+            if ( layerMetadata == null ) {
+                layerMetadata = layer.getMetadata();
+            } else {
+                layerMetadata.merge( layer.getMetadata() );
+            }
+        }
+
+        return layerMetadata;
     }
 
     @Override
-    public List<Layer> getLayers() {
+    public List<StandardTheme> getThemes() {
+        return themes;
+    }
+
+    private static <T extends Layer> List<T> collectLayers( final StandardTheme theme, final Class<T> layerType,
+                                                            final List<T> layers ) {
+        for ( final Layer layer : theme.layers ) {
+            if ( layerType.isAssignableFrom( layer.getClass() ) ) {
+                layers.add( layerType.cast( layer ) );
+            }
+        }
+
+        for ( final StandardTheme subTheme : theme.getThemes() ) {
+            collectLayers( subTheme, layerType, layers );
+        }
+
         return layers;
     }
 
     @Override
-    public List<Theme> getThemes() {
-        return themes;
+    public <T extends Layer> List<T> getLayers( Class<T> layerType ) {
+        return collectLayers( this, layerType, new ArrayList<T>() );
     }
 
     public String toString( int indent ) {
         StringBuilder sb = new StringBuilder();
         sb.append( repeat( indent, "  " ) );
         sb.append( " - " );
-        sb.append( metadata.getName() );
+        sb.append( layerMetadata.getName() );
         sb.append( " " );
         sb.append( layers.size() );
         sb.append( " layers\n" );
         indent += 2;
-        for ( Theme t : themes ) {
-            if ( t instanceof StandardTheme ) {
-                sb.append( ( (StandardTheme) t ).toString( indent ) );
-            } else {
-                sb.append( t );
-            }
+        for ( StandardTheme theme : themes ) {
+            sb.append( theme.toString( indent ) );
         }
         return sb.toString();
     }
@@ -123,10 +130,4 @@ public class StandardTheme implements Theme {
     public String toString() {
         return toString( 0 );
     }
-
-    @Override
-    public ResourceMetadata<? extends Resource> getMetadata() {
-        return resourceMetadata;
-    }
-
 }

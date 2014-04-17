@@ -44,16 +44,16 @@ import java.util.List;
 
 import org.deegree.layer.Layer;
 import org.deegree.layer.metadata.LayerMetadata;
-import org.deegree.workspace.Resource;
 
 /**
  * A node in a theme tree.
  * 
  * @author <a href="mailto:schmitz@occamlabs.de">Andreas Schmitz</a>
+ * @author <a href="mailto:reijer.copier@idgis.nl">Reijer Copier</a> 
  * 
  * @since 3.4
  */
-public interface Theme extends Resource {
+public interface Theme {
 
     /**
      * @return the metadata (description, spatial) for this theme
@@ -61,13 +61,13 @@ public interface Theme extends Resource {
     LayerMetadata getLayerMetadata();
 
     /**
-     * @return all direct child layers of this theme
-     */
-    List<Layer> getLayers();
-
-    /**
      * @return all direct child themes of this theme
      */
-    List<Theme> getThemes();
+    List<? extends Theme> getThemes();
 
+    /**
+     * @return all layers of a specific type within this theme
+     * @param layerType
+     */
+    <T extends Layer> List<T> getLayers( Class<T> layerType );
 }

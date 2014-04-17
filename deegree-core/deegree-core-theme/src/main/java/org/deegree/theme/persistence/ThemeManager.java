@@ -40,7 +40,7 @@
  ----------------------------------------------------------------------------*/
 package org.deegree.theme.persistence;
 
-import org.deegree.theme.Theme;
+import org.deegree.theme.RootTheme;
 import org.deegree.workspace.standard.DefaultResourceManager;
 import org.deegree.workspace.standard.DefaultResourceManagerMetadata;
 
@@ -51,10 +51,10 @@ import org.deegree.workspace.standard.DefaultResourceManagerMetadata;
  * 
  * @since 3.4
  */
-public class ThemeManager extends DefaultResourceManager<Theme> {
+public class ThemeManager extends DefaultResourceManager<RootTheme> {
 
     public ThemeManager() {
-        super( new DefaultResourceManagerMetadata<Theme>( ThemeProvider.class, "themes", "themes" ) );
+        super( new DefaultResourceManagerMetadata<RootTheme>( ThemeProvider.class, "themes", "themes" ) );
     }
 
 }

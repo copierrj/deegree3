@@ -27,8 +27,6 @@
 ----------------------------------------------------------------------------*/
 package org.deegree.theme.persistence.remotewms;
 
-import static org.deegree.theme.Themes.aggregateSpatialMetadata;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -41,8 +39,9 @@ import org.deegree.protocol.wms.client.WMSClient;
 import org.deegree.remoteows.RemoteOWS;
 import org.deegree.remoteows.RemoteOWSProvider;
 import org.deegree.remoteows.wms.RemoteWMS;
-import org.deegree.theme.Theme;
+import org.deegree.theme.RootTheme;
 import org.deegree.theme.persistence.remotewms.jaxb.RemoteWMSThemes;
+import org.deegree.theme.persistence.standard.StandardRootTheme;
 import org.deegree.theme.persistence.standard.StandardTheme;
 import org.deegree.workspace.ResourceBuilder;
 import org.deegree.workspace.ResourceInitException;
@@ -56,22 +55,22 @@ import org.deegree.workspace.Workspace;
  * 
  * @since 3.4
  */
-public class RemoteWmsThemeBuilder implements ResourceBuilder<Theme> {
+public class RemoteWmsThemeBuilder implements ResourceBuilder<RootTheme> {
 
-    private ResourceMetadata<Theme> metadata;
+    private ResourceMetadata<RootTheme> metadata;
 
     private Workspace workspace;
 
     private RemoteWMSThemes cfg;
 
-    public RemoteWmsThemeBuilder( ResourceMetadata<Theme> metadata, Workspace workspace, RemoteWMSThemes cfg ) {
+    public RemoteWmsThemeBuilder( ResourceMetadata<RootTheme> metadata, Workspace workspace, RemoteWMSThemes cfg ) {
         this.metadata = metadata;
         this.workspace = workspace;
         this.cfg = cfg;
     }
 
     @Override
-    public Theme build() {
+    public RootTheme build() {
         try {
             String id = cfg.getRemoteWMSId();
 
@@ -90,28 +89,46 @@ public class RemoteWmsThemeBuilder implements ResourceBuilder<Theme> {
             WMSClient client = ( (RemoteWMS) ows ).getClient();
             Tree<LayerMetadata> tree = client.getLayerTree();
 
-            Theme theme = buildTheme( tree, store );
-            aggregateSpatialMetadata( theme );
+            RootTheme theme = buildTheme( tree, store ).buildRootTheme();
             return theme;
         } catch ( Exception e ) {
             throw new ResourceInitException( "Could not parse remote WMS theme config.", e );
         }
     }
 
-    private Theme buildTheme( Tree<LayerMetadata> tree, LayerStore store ) {
-        List<Theme> thms = new ArrayList<Theme>();
-        List<Layer> lays = new ArrayList<Layer>();
+    private interface ThemeBuilder {
+
+        StandardTheme buildTheme();
+
+        StandardRootTheme buildRootTheme();
+    }
+
+    private ThemeBuilder buildTheme( final Tree<LayerMetadata> tree, final LayerStore store ) {
+        final List<StandardTheme> thms = new ArrayList<StandardTheme>();
+        final List<Layer> lays = new ArrayList<Layer>();
         if ( tree.value.getName() != null ) {
             Layer l = store.get( tree.value.getName() );
             if ( l != null ) {
                 lays.add( l );
             }
         }
-        Theme thm = new StandardTheme( tree.value, thms, lays, metadata );
-        for ( Tree<LayerMetadata> child : tree.children ) {
-            thms.add( buildTheme( child, store ) );
-        }
-        return thm;
-    }
 
+        for ( Tree<LayerMetadata> child : tree.children ) {
+            thms.add( buildTheme( child, store ).buildTheme() );
+        }
+
+        return new ThemeBuilder() {
+
+            @Override
+            public StandardTheme buildTheme() {
+                return new StandardTheme( tree.value, thms, lays );
+            }
+
+            @Override
+            public StandardRootTheme buildRootTheme() {
+                return new StandardRootTheme( tree.value, thms, lays, metadata );
+            }
+
+        };
+    }
 }

@@ -101,4 +101,22 @@ public abstract class AbstractLayer implements Layer {
         }
         return resolveStyleRef( style ) != null;
     }
+
+    @Override
+    public LayerData query( LayerQuery query ) {
+        if ( query instanceof LayerInfoQuery ) {
+            return infoQuery( (LayerInfoQuery) query );
+        } else {
+            return mapQuery( query );
+        }
+    }
+
+    protected LayerData mapQuery( final LayerQuery query ) {
+        return new StandardLayerData();
+    }
+                            
+
+    protected LayerData infoQuery( final LayerInfoQuery query ) {
+        return new StandardLayerData();
+    }
 }

@@ -57,6 +57,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.OutputStream;
 
+import org.deegree.commons.context.StandardContext;
 import org.deegree.rendering.r2d.Java2DRasterRenderer;
 import org.deegree.rendering.r2d.Java2DRenderer;
 import org.deegree.rendering.r2d.Java2DTextRenderer;
@@ -72,7 +73,7 @@ import org.deegree.style.utils.ImageUtils;
  * 
  * @version $Revision$, $Date$
  */
-public class DefaultRenderContext implements RenderContext {
+public class DefaultRenderContext extends StandardContext implements RenderContext {
 
     private BufferedImage image;
 

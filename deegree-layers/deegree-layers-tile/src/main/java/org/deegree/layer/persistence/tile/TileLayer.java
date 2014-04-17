@@ -52,7 +52,6 @@ import org.deegree.commons.ows.exception.OWSException;
 import org.deegree.cs.coordinatesystems.ICRS;
 import org.deegree.geometry.Envelope;
 import org.deegree.layer.AbstractLayer;
-import org.deegree.layer.LayerData;
 import org.deegree.layer.LayerQuery;
 import org.deegree.layer.metadata.LayerMetadata;
 import org.deegree.style.StyleRef;
@@ -86,8 +85,7 @@ public class TileLayer extends AbstractLayer {
     }
 
     @Override
-    public TileLayerData mapQuery( LayerQuery query, List<String> headers )
-                            throws OWSException {
+    public TileLayerData mapQuery( LayerQuery query ) { 
         Envelope env = query.getEnvelope();
         ICRS crs = env.getCoordinateSystem();
 
@@ -102,13 +100,7 @@ public class TileLayer extends AbstractLayer {
 
         Iterator<Tile> tiles = data.getTiles( env, query.getResolution() );
         return new TileLayerData( tiles );
-    }
-
-    @Override
-    public LayerData infoQuery( LayerQuery query, List<String> headers )
-                            throws OWSException {
-        return null;
-    }
+    }    
 
     /**
      * @return the tile data set this layer has been configured with wrt the tile matrix set

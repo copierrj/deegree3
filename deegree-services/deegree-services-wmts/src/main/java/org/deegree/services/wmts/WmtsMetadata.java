@@ -36,7 +36,7 @@ import org.deegree.services.OwsManager;
 import org.deegree.services.metadata.OWSMetadataProvider;
 import org.deegree.services.metadata.OWSMetadataProviderManager;
 import org.deegree.services.wmts.jaxb.DeegreeWMTS;
-import org.deegree.theme.Theme;
+import org.deegree.theme.RootTheme;
 import org.deegree.theme.persistence.ThemeProvider;
 import org.deegree.workspace.ResourceBuilder;
 import org.deegree.workspace.ResourceIdentifier;
@@ -69,7 +69,7 @@ public class WmtsMetadata extends AbstractResourceMetadata<OWS> {
                                                                   workspace );
 
             for ( String tid : cfg.getServiceConfiguration().getThemeId() ) {
-                dependencies.add( new DefaultResourceIdentifier<Theme>( ThemeProvider.class, tid ) );
+                dependencies.add( new DefaultResourceIdentifier<RootTheme>( ThemeProvider.class, tid ) );
             }
 
             OwsManager mgr = workspace.getResourceManager( OwsManager.class );

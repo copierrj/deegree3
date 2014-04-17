@@ -40,6 +40,7 @@ import static org.deegree.coverage.raster.interpolation.InterpolationType.NEARES
 import static org.slf4j.LoggerFactory.getLogger;
 
 import java.util.List;
+import java.util.ArrayList;
 
 import org.deegree.commons.ows.exception.OWSException;
 import org.deegree.coverage.rangeset.RangeSet;
@@ -48,6 +49,7 @@ import org.deegree.coverage.raster.MultiResolutionRaster;
 import org.deegree.coverage.raster.interpolation.InterpolationType;
 import org.deegree.geometry.Envelope;
 import org.deegree.layer.AbstractLayer;
+import org.deegree.layer.LayerInfoQuery;
 import org.deegree.layer.LayerQuery;
 import org.deegree.layer.metadata.LayerMetadata;
 import org.deegree.rendering.r2d.context.MapOptions.Interpolation;
@@ -80,10 +82,11 @@ public class CoverageLayer extends AbstractLayer {
     }
 
     @Override
-    public CoverageLayerData mapQuery( LayerQuery query, List<String> headers )
-                            throws OWSException {
+    public CoverageLayerData mapQuery( LayerQuery query ) {
         try {
             Envelope bbox = query.getEnvelope();
+            
+            List<String> headers = new ArrayList<String>();            
             RangeSet filter = dimensionHandler.getDimensionFilter( query.getDimensions(), headers );
             Style style = resolveStyleRef( query.getStyle() );
             // handle SLD/SE scale settings
@@ -98,7 +101,7 @@ public class CoverageLayer extends AbstractLayer {
             }
 
             return new CoverageLayerData( raster, bbox, query.getWidth(), query.getHeight(), interpol, filter, style,
-                                          getMetadata().getFeatureTypes().get( 0 ) );
+                                          getMetadata().getFeatureTypes().get( 0 ), headers );
         } catch ( OWSException e ) {
             throw e;
         } catch ( Throwable e ) {
@@ -127,11 +130,11 @@ public class CoverageLayer extends AbstractLayer {
     }
 
     @Override
-    public CoverageLayerData infoQuery( LayerQuery query, List<String> headers )
-                            throws OWSException {
+    public CoverageLayerData infoQuery( LayerInfoQuery query ) {
         try {
-            Envelope bbox = query.calcClickBox( query.getRenderingOptions().getFeatureInfoRadius( getMetadata().getName() ) );
+            Envelope bbox = query.getClickBox();
 
+            List<String> headers = new ArrayList<String>();
             RangeSet filter = dimensionHandler.getDimensionFilter( query.getDimensions(), headers );
 
             StyleRef ref = query.getStyle();
@@ -149,7 +152,7 @@ public class CoverageLayer extends AbstractLayer {
 
             return new CoverageLayerData( raster, bbox, query.getWidth(), query.getHeight(),
                                           InterpolationType.NEAREST_NEIGHBOR, filter, style,
-                                          getMetadata().getFeatureTypes().get( 0 ) );
+                                          getMetadata().getFeatureTypes().get( 0 ), headers );
         } catch ( OWSException e ) {
             throw e;
         } catch ( Throwable e ) {

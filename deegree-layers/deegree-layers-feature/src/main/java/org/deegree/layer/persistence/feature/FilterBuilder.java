@@ -45,8 +45,8 @@ import static org.deegree.feature.types.property.GeometryPropertyType.Coordinate
 import static org.deegree.feature.types.property.GeometryPropertyType.CoordinateDimension.DIM_2_OR_3;
 
 import java.util.LinkedList;
-import java.util.List;
 
+import org.deegree.commons.context.Context;
 import org.deegree.commons.ows.exception.OWSException;
 import org.deegree.commons.tom.gml.property.PropertyType;
 import org.deegree.feature.types.FeatureType;
@@ -73,11 +73,11 @@ import org.deegree.style.utils.Styles;
  */
 class FilterBuilder {
 
-    static OperatorFilter buildFilterForMap(OperatorFilter filter, Style style, LayerQuery query, DimensionFilterBuilder dimFilterBuilder, List<String> headers) throws OWSException{
+    static OperatorFilter buildFilterForMap(OperatorFilter filter, Style style, LayerQuery query, DimensionFilterBuilder dimFilterBuilder, Context context ) throws OWSException{
         style = style.filter( query.getScale() );
         filter = Filters.and( filter, Styles.getStyleFilters( style, query.getScale() ) );
         filter = Filters.and( filter, query.getFilter() );
-        filter = Filters.and( filter, dimFilterBuilder.getDimensionFilter( query.getDimensions(), headers ) );
+        filter = Filters.and( filter, dimFilterBuilder.getDimensionFilter( query.getDimensions(), context ) );
         return filter;
     }
     

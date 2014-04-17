@@ -39,6 +39,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.OutputStream;
 
+import org.deegree.commons.context.Context;
 import org.deegree.rendering.r2d.RasterRenderer;
 import org.deegree.rendering.r2d.Renderer;
 import org.deegree.rendering.r2d.TextRenderer;
@@ -52,7 +53,7 @@ import org.deegree.rendering.r2d.TileRenderer;
  * 
  * @version $Revision$, $Date$
  */
-public interface RenderContext {
+public interface RenderContext extends Context {
 
     void setOutput( OutputStream out );
 

@@ -54,12 +54,10 @@ import java.util.Map;
 import javax.servlet.ServletException;
 
 import org.deegree.commons.ows.exception.OWSException;
-import org.deegree.layer.Layer;
 import org.deegree.layer.persistence.tile.TileLayer;
 import org.deegree.protocol.wmts.ops.GetTile;
 import org.deegree.services.controller.utils.HttpResponseBuffer;
 import org.deegree.theme.Theme;
-import org.deegree.theme.Themes;
 import org.deegree.tile.Tile;
 import org.deegree.tile.TileDataLevel;
 import org.deegree.tile.TileDataSet;
@@ -80,10 +78,8 @@ class TileHandler {
     TileHandler( List<Theme> themes ) {
         layers = new HashMap<String, TileLayer>();
         for ( Theme theme : themes ) {
-            for ( Layer l : Themes.getAllLayers( theme ) ) {
-                if ( l instanceof TileLayer ) {
-                    layers.put( l.getMetadata().getName(), ( (TileLayer) l ) );
-                }
+            for ( TileLayer tileLayer : theme.getLayers( TileLayer.class ) ) {
+                layers.put( tileLayer.getMetadata().getName(), tileLayer );
             }
         }
     }

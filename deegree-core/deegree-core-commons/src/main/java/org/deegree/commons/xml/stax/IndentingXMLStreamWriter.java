@@ -142,7 +142,9 @@ public class IndentingXMLStreamWriter implements XMLStreamWriter {
 
     public void writeCharacters( String text )
                             throws XMLStreamException {
-        s.writeCharacters( text );
+        if ( text != null ) {
+            s.writeCharacters( text );
+        }
     }
 
     public void writeCharacters( char[] text, int start, int len )

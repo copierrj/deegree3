@@ -35,7 +35,7 @@
  ----------------------------------------------------------------------------*/
 package org.deegree.layer;
 
-import org.deegree.feature.FeatureCollection;
+import org.deegree.featureinfo.context.InfoContext;
 import org.deegree.rendering.r2d.context.RenderContext;
 
 /**
@@ -49,7 +49,5 @@ public interface LayerData {
 
     void render( RenderContext context );
 
-    // think about using a infocontext or something here
-    FeatureCollection info();
-
+    void info( InfoContext context );
 }

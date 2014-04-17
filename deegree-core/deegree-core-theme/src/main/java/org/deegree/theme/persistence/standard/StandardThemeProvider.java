@@ -42,7 +42,7 @@ package org.deegree.theme.persistence.standard;
 
 import java.net.URL;
 
-import org.deegree.theme.Theme;
+import org.deegree.theme.RootTheme;
 import org.deegree.theme.persistence.ThemeProvider;
 import org.deegree.workspace.ResourceLocation;
 import org.deegree.workspace.ResourceMetadata;
@@ -64,7 +64,7 @@ public class StandardThemeProvider extends ThemeProvider {
     }
 
     @Override
-    public ResourceMetadata<Theme> createFromLocation( Workspace workspace, ResourceLocation<Theme> location ) {
+    public ResourceMetadata<RootTheme> createFromLocation( Workspace workspace, ResourceLocation<RootTheme> location ) {
         return new StandardThemeMetadata( workspace, location, this );
     }
 

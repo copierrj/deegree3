@@ -42,7 +42,6 @@ import static org.deegree.commons.xml.CommonNamespaces.XLNNS;
 import static org.deegree.commons.xml.CommonNamespaces.XSINS;
 import static org.deegree.commons.xml.XMLAdapter.writeElement;
 import static org.deegree.layer.dims.Dimension.formatDimensionValueList;
-import static org.deegree.services.wms.controller.capabilities.WmsCapabilities130SpatialMetadataWriter.writeSrsAndEnvelope;
 import static org.slf4j.LoggerFactory.getLogger;
 
 import java.util.List;
@@ -59,15 +58,11 @@ import org.deegree.commons.ows.metadata.ServiceIdentification;
 import org.deegree.commons.ows.metadata.ServiceProvider;
 import org.deegree.commons.utils.Pair;
 import org.deegree.commons.xml.stax.XMLStreamUtils;
-import org.deegree.geometry.metadata.SpatialMetadata;
 import org.deegree.layer.dims.Dimension;
-import org.deegree.layer.metadata.LayerMetadata;
 import org.deegree.services.metadata.OWSMetadataProvider;
 import org.deegree.services.wms.MapService;
 import org.deegree.services.wms.controller.WMSController;
 import org.deegree.style.se.unevaluated.Style;
-import org.deegree.theme.Theme;
-import org.deegree.theme.Themes;
 import org.slf4j.Logger;
 
 /**
@@ -171,43 +166,11 @@ public class Capabilities130XMLAdapter {
 
         writeExtendedCapabilities( writer );
 
-        writeThemes( writer, service.getThemes() );
+        themeWriter.writeTheme( writer, service.getRootTheme() );
 
         writer.writeEndElement();
     }
-
-    private void writeThemes( XMLStreamWriter writer, List<Theme> themes )
-                            throws XMLStreamException {
-        if ( themes.size() == 1 ) {
-            themeWriter.writeTheme( writer, themes.get( 0 ) );
-        } else {
-            // synthetic root layer needed
-            writer.writeStartElement( WMSNS, "Layer" );
-            writeElement( writer, WMSNS, "Title", "Root" );
-
-            // TODO think about a push approach instead of a pull approach
-            LayerMetadata lmd = null;
-            for ( Theme t : themes ) {
-                for ( org.deegree.layer.Layer l : Themes.getAllLayers( t ) ) {
-                    if ( lmd == null ) {
-                        lmd = l.getMetadata();
-                    } else {
-                        lmd.merge( l.getMetadata() );
-                    }
-                }
-            }
-            if ( lmd != null ) {
-                SpatialMetadata smd = lmd.getSpatialMetadata();
-                writeSrsAndEnvelope( writer, smd.getCoordinateSystems(), smd.getEnvelope() );
-            }
-
-            for ( Theme t : themes ) {
-                themeWriter.writeTheme( writer, t );
-            }
-            writer.writeEndElement();
-        }
-    }
-
+    
     static void writeDimensions( XMLStreamWriter writer, Map<String, Dimension<?>> dims )
                             throws XMLStreamException {
         for ( Entry<String, Dimension<?>> entry : dims.entrySet() ) {

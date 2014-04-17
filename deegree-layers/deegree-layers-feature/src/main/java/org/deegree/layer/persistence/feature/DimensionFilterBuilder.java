@@ -50,6 +50,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import org.deegree.commons.context.Context;
 import org.deegree.commons.ows.exception.OWSException;
 import org.deegree.commons.tom.datetime.TimeInstant;
 import org.deegree.commons.tom.primitive.PrimitiveValue;
@@ -74,7 +75,7 @@ import org.deegree.layer.dims.DimensionInterval;
  */
 class DimensionFilterBuilder {
 
-    private Map<String, Dimension<?>> dimensions;
+    private final Map<String, Dimension<?>> dimensions;
 
     DimensionFilterBuilder( Map<String, Dimension<?>> dimensions ) {
         this.dimensions = dimensions;
@@ -87,14 +88,14 @@ class DimensionFilterBuilder {
      * @throws MissingDimensionValue
      * @throws InvalidDimensionValue
      */
-    OperatorFilter getDimensionFilter( Map<String, List<?>> dims, List<String> headers )
+    OperatorFilter getDimensionFilter( Map<String, List<?>> dims, Context context )
                             throws OWSException {
         LinkedList<Operator> ops = new LinkedList<Operator>();
 
         Dimension<?> time = dimensions.get( "time" );
 
         if ( time != null ) {
-            handleTime( dims, time, headers, ops );
+            handleTime( dims, time, ops, context );
         }
 
         for ( String name : dimensions.keySet() ) {
@@ -105,11 +106,11 @@ class DimensionFilterBuilder {
 
             List<?> vals = dims.get( name );
 
-            vals = checkDefaultValue( vals, dim, headers, name );
+            vals = checkDefaultValue( vals, dim, name, context );
 
             Operator[] os = new Operator[vals.size()];
 
-            findFilters( vals, dim, name, os, headers );
+            findFilters( vals, dim, name, os, context );
 
             if ( os.length > 1 ) {
                 if ( !dim.getMultipleValues() ) {
@@ -131,7 +132,7 @@ class DimensionFilterBuilder {
         return new OperatorFilter( ops.get( 0 ) );
     }
 
-    private void findFilters( List<?> vals, Dimension<?> dim, String name, Operator[] os, List<String> headers )
+    private void findFilters( List<?> vals, Dimension<?> dim, String name, Operator[] os, Context context )
                             throws OWSException {
         final ValueReference property = new ValueReference( dim.getPropertyName() );
         int i = 0;
@@ -158,7 +159,7 @@ class DimensionFilterBuilder {
                 os[i++] = new PropertyIsBetween( property, new Literal<PrimitiveValue>( min ),
                                                  new Literal<PrimitiveValue>( max ), true, null );
             } else {
-                o = checkNearestValue( o, headers, name, dim );
+                o = checkNearestValue( o, name, dim, context );
                 os[i++] = new PropertyIsEqualTo( new ValueReference( dim.getPropertyName() ),
                                                  new Literal<PrimitiveValue>( o.toString() ), true, null );
             }
@@ -173,7 +174,7 @@ class DimensionFilterBuilder {
         }
     }
 
-    private List<?> checkDefaultValue( List<?> vals, Dimension<?> dim, List<String> headers, String name )
+    private List<?> checkDefaultValue( List<?> vals, Dimension<?> dim, String name, Context context )
                             throws OWSException {
         if ( vals == null ) {
             vals = dim.getDefaultValue();
@@ -183,43 +184,42 @@ class DimensionFilterBuilder {
             }
             String units = dim.getUnits();
             if ( name.equals( "elevation" ) ) {
-                headers.add( "99 Default value used: elevation=" + formatDimensionValueList( vals, false ) + " "
-                             + ( units == null ? "m" : units ) );
+                context.addHeader( "99 Default value used: elevation=" + formatDimensionValueList( vals, false ) + " "
+                                   + ( units == null ? "m" : units ) );
             } else if ( name.equals( "time" ) ) {
-                headers.add( "99 Default value used: time=" + formatDimensionValueList( vals, true ) + " "
-                             + ( units == null ? "ISO8601" : units ) );
+                context.addHeader( "99 Default value used: time=" + formatDimensionValueList( vals, true ) + " "
+                                   + ( units == null ? "ISO8601" : units ) );
             } else {
-                headers.add( "99 Default value used: DIM_" + name + "=" + formatDimensionValueList( vals, false ) + " "
-                             + units );
+                context.addHeader( "99 Default value used: DIM_" + name + "=" + formatDimensionValueList( vals, false )
+                                   + " " + units );
             }
         }
         return vals;
     }
 
-    private Object checkNearestValue( Object o, List<String> headers, String name, Dimension<?> dim ) {
+    private Object checkNearestValue( Object o, String name, Dimension<?> dim, Context context ) {
         if ( dim.getNearestValue() ) {
             Object nearest = dim.getNearestValue( o );
             if ( !nearest.equals( o ) ) {
                 o = nearest;
                 if ( "elevation".equals( name ) ) {
-                    headers.add( "99 Nearest value used: elevation=" + o + " " + dim.getUnits() );
+                    context.addHeader( "99 Nearest value used: elevation=" + o + " " + dim.getUnits() );
                 } else {
-                    headers.add( "99 Nearest value used: DIM_" + name + "=" + o + " " + dim.getUnits() );
+                    context.addHeader( "99 Nearest value used: DIM_" + name + "=" + o + " " + dim.getUnits() );
                 }
             }
         }
         return o;
     }
 
-    private void handleTime( Map<String, List<?>> dims, Dimension<?> time, List<String> headers,
-                             LinkedList<Operator> ops )
+    private void handleTime( Map<String, List<?>> dims, Dimension<?> time, LinkedList<Operator> ops, Context context )
                             throws OWSException {
         List<?> vals = dims.get( "time" );
 
-        vals = checkDefaultValueTime( vals, time, headers );
+        vals = checkDefaultValueTime( vals, time, context );
 
         Operator[] os = new Operator[vals.size()];
-        findTimeFilters( time, vals, os, headers );
+        findTimeFilters( time, vals, os, context );
         if ( os.length > 1 ) {
             if ( !time.getMultipleValues() ) {
                 String msg = "Multiple values are not allowed for TIME.";
@@ -235,7 +235,7 @@ class DimensionFilterBuilder {
         }
     }
 
-    private void findTimeFilters( Dimension<?> time, List<?> vals, Operator[] os, List<String> headers )
+    private void findTimeFilters( Dimension<?> time, List<?> vals, Operator[] os, Context context )
                             throws OWSException {
         final ValueReference property = new ValueReference( time.getPropertyName() );
 
@@ -263,7 +263,7 @@ class DimensionFilterBuilder {
                 throw new RuntimeException( "Unexpected dimension value class: " + o.getClass() );
             }
             if ( theVal != null ) {
-                theVal = checkNearestValueTime( theVal, time, headers );
+                theVal = checkNearestValueTime( theVal, time, context );
                 Literal<PrimitiveValue> lit = new Literal<PrimitiveValue>( formatDateTime( theVal ) );
                 os[i++] = new PropertyIsEqualTo( property, lit, true, null );
             }
@@ -279,7 +279,7 @@ class DimensionFilterBuilder {
         }
     }
 
-    private List<?> checkDefaultValueTime( List<?> vals, Dimension<?> time, List<String> headers )
+    private List<?> checkDefaultValueTime( List<?> vals, Dimension<?> time, Context context )
                             throws OWSException {
         if ( vals == null ) {
             vals = time.getDefaultValue();
@@ -288,17 +288,17 @@ class DimensionFilterBuilder {
             }
             String defVal = formatDimensionValueList( vals, true );
 
-            headers.add( "99 Default value used: time=" + defVal + " ISO8601" );
+            context.addHeader( "99 Default value used: time=" + defVal + " ISO8601" );
         }
         return vals;
     }
 
-    private Date checkNearestValueTime( Date theVal, Dimension<?> time, List<String> headers ) {
+    private Date checkNearestValueTime( Date theVal, Dimension<?> time, Context context ) {
         if ( time.getNearestValue() ) {
             Object nearest = time.getNearestValue( theVal );
             if ( !nearest.equals( theVal ) ) {
                 theVal = (Date) nearest;
-                headers.add( "99 Nearest value used: time=" + formatDateTime( theVal ) + " " + time.getUnits() );
+                context.addHeader( "99 Nearest value used: time=" + formatDateTime( theVal ) + " " + time.getUnits() );
             }
         }
         return theVal;

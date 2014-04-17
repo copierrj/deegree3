@@ -37,7 +37,7 @@ import org.deegree.services.OwsManager;
 import org.deegree.services.jaxb.wms.DeegreeWMS;
 import org.deegree.services.metadata.OWSMetadataProvider;
 import org.deegree.services.metadata.OWSMetadataProviderManager;
-import org.deegree.theme.Theme;
+import org.deegree.theme.RootTheme;
 import org.deegree.theme.persistence.ThemeProvider;
 import org.deegree.workspace.ResourceBuilder;
 import org.deegree.workspace.ResourceIdentifier;
@@ -76,9 +76,8 @@ public class WmsMetadata extends AbstractResourceMetadata<OWS> {
                 softDependencies.add( new DefaultResourceIdentifier( MetadataStoreProvider.class, id ) );
             }
 
-            for ( String tid : cfg.getServiceConfiguration().getThemeId() ) {
-                dependencies.add( new DefaultResourceIdentifier<Theme>( ThemeProvider.class, tid ) );
-            }
+            String tid = cfg.getServiceConfiguration().getThemeId();
+            dependencies.add( new DefaultResourceIdentifier<RootTheme>( ThemeProvider.class, tid ) );            
 
             OwsManager mgr = workspace.getResourceManager( OwsManager.class );
             Collection<ResourceMetadata<OWS>> mds = mgr.getResourceMetadata();

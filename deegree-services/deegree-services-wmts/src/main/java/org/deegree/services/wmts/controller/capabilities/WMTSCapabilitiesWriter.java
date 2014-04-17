@@ -153,10 +153,7 @@ public class WMTSCapabilitiesWriter extends OWSCapabilitiesXMLAdapter {
         writer.writeStartElement( WMTSNS, "Theme" );
         exportMetadata( t.getLayerMetadata(), false, null );
 
-        for ( Theme t2 : t.getThemes() ) {
-            exportTheme( t2 );
-        }
-        exportLayers( t.getLayers() );
+        exportLayers( t.getLayers( TileLayer.class ) );
 
         writer.writeEndElement();
     }
@@ -184,7 +181,7 @@ public class WMTSCapabilitiesWriter extends OWSCapabilitiesXMLAdapter {
         }
     }
 
-    private void exportLayers( List<Layer> layers )
+    private void exportLayers( List<TileLayer> layers )
                             throws XMLStreamException {
         for ( Layer l : layers ) {
             if ( l instanceof TileLayer ) {
