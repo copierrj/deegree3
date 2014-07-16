@@ -35,45 +35,113 @@
  ----------------------------------------------------------------------------*/
 package org.deegree.geometry.io;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 
 import org.deegree.geometry.Geometry;
-import org.deegree.geometry.refs.GeometryReference;
-import org.deegree.geometry.standard.AbstractDefaultGeometry;
-import org.deegree.geometry.standard.primitive.DefaultPoint;
-
-import com.vividsolutions.jts.io.OutputStreamOutStream;
-import com.vividsolutions.jts.io.ParseException;
+import org.deegree.geometry.points.Points;
+import org.deegree.geometry.primitive.LineString;
+import org.deegree.geometry.primitive.Point;
 
 /**
  * Writes {@link Geometry} objects encoded as Well-Known Binary (WKB).
  * 
- * TODO re-implement without delegating to JTS TODO add support for non-SFS geometries (e.g. non-linear curves)
  * 
- * @author <a href="mailto:schneider@lat-lon.de">Markus Schneider</a>
+ * @author <a href="mailto:reijer.copier@idgis.nl">Reijer Copier</a>
  * @author last edited by: $Author$
  * 
  * @version $Revision$, $Date$
  */
 public class WKBWriter {
 
-    // TODO remove the need for this object
-    private static AbstractDefaultGeometry defaultGeom = new DefaultPoint( null, null, null, new double[] { 0.0, 0.0 } );
+    static enum Types {
+
+        GEOMETRY, POINT, LINE_STRING, POLYGON, MULTI_POINT, MULT_LINE_STRING, MULTI_POLYGON, GEOMETRY_COLLECTION, CIRCULAR_STRING, COMPOUND_CURVE, CURVE_POLYGON, MULTI_CURVE, MULTI_SURFACE, CURVE, SURFACE, POLYHEDRAL_SURFACE, TIN, TRIANGLE;
+
+        int get2D() {
+            return ordinal();
+        }
+
+        int getZ() {
+            return ordinal() + 1000;
+        }
+
+        int getM() {
+            return ordinal() + 2000;
+        }
+
+        int getZM() {
+            return ordinal() + 3000;
+        }
+    }
 
     public static byte[] write( Geometry geom )
-                            throws ParseException {
-        if ( geom instanceof GeometryReference ) {
-            geom = ( (GeometryReference<Geometry>) geom ).getReferencedObject();
-        }
-        // com.vividsolutions.jts.io.WKBWriter is not thread safe
-        return new com.vividsolutions.jts.io.WKBWriter().write( ( (AbstractDefaultGeometry) geom ).getJTSGeometry() );
+                            throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+
+        write( geom, baos );
+
+        baos.close();
+        return baos.toByteArray();
     }
 
     public static void write( Geometry geom, OutputStream os )
-                            throws IOException, ParseException {
-        // com.vividsolutions.jts.io.WKBWriter is not thread safe
-        new com.vividsolutions.jts.io.WKBWriter().write( ( (AbstractDefaultGeometry) geom ).getJTSGeometry(),
-                                                         new OutputStreamOutStream( os ) );
+                            throws IOException {
+
+        os.write( 0 ); // Big-endian;
+
+        DataOutputStream dos = new DataOutputStream( os );
+
+        final int dims = geom.getCoordinateDimension();
+        if ( dims != 2 && dims != 3 ) {
+            throw new IllegalArgumentException( "Unsupported dimensions: " + dims );
+        }
+
+        if ( geom instanceof Point ) {
+            Point point = (Point) geom;
+            if ( dims == 3 ) {
+                dos.writeInt( Types.POINT.getZ() );
+                dos.writeDouble( point.get0() );
+                dos.writeDouble( point.get1() );
+                dos.writeDouble( point.get2() );
+            } else if ( dims == 2 ) {
+                dos.writeInt( Types.POINT.get2D() );
+                dos.writeDouble( point.get0() );
+                dos.writeDouble( point.get1() );
+            }
+        } else if ( geom instanceof LineString ) {
+            LineString lineString = (LineString) geom;
+
+            if ( dims == 3 ) {
+                dos.writeInt( Types.LINE_STRING.getZ() );
+            } else if ( dims == 2 ) {
+                dos.writeInt( Types.LINE_STRING.get2D() );
+            }
+
+            Points points = lineString.getControlPoints();
+            dos.write( points.size() );
+
+            for ( Point p : points ) {
+                dos.writeDouble( p.get0() );
+                dos.writeDouble( p.get1() );
+                if ( dims == 3 ) {
+                    dos.writeDouble( p.get2() );
+                }
+            }
+            
+            Point start = points.getStartPoint();
+            
+            dos.writeDouble( start.get0() );
+            dos.writeDouble( start.get1() );
+            if ( dims == 3 ) {
+                dos.writeDouble( start.get2() );
+            }
+        } else {
+            throw new IllegalArgumentException( "Unsupported geometry type: " + geom.getClass().getCanonicalName() );
+        }
+
+        dos.flush();
     }
 }
